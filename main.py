@@ -59,6 +59,11 @@ async def reg_professor():
 async def health():
     return {"status": "ok", "app": "AttendEase"}
 
+@app.get("/static/sw.js")
+async def service_worker():
+    return FileResponse("static/sw.js",
+                        headers={"Service-Worker-Allowed": "/"})
+
 import uvicorn
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
