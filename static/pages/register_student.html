@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AttendEase — Student Registration</title>
+  <link rel="stylesheet" href="/static/css/theme.css" />
+</head>
+<body>
+<div class="page-wrapper">
+  <div class="card" style="max-width:540px;">
+
+    <div class="brand">
+      <div class="brand-icon" style="background: linear-gradient(135deg,#4fc3f7,#81d4fa);">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
+          <path d="M6 12v5c3 3 9 3 12 0v-5"/>
+        </svg>
+      </div>
+      <h1>Student</h1>
+      <p>Create your student account</p>
+    </div>
+
+    <div id="alert-box" class="alert"></div>
+
+    <form id="student-form" onsubmit="return false;">
+
+      <div class="form-group">
+        <label>Full Name *</label>
+        <input type="text" id="s-name" placeholder="e.g. Priya Sharma" autocomplete="name" />
+        <span class="error-msg" id="err-name">Name is required.</span>
+      </div>
+
+      <div class="form-group">
+        <label>Department *</label>
+        <select id="s-dept">
+          <option value="">— Select Department —</option>
+          <option>Computer Science</option>
+          <option>Artificial Inteligence and Machine Learning</option>
+          <option>Data Science</option>
+          <option>Mechanical</option>
+          <option>Civil</option>
+          <option>Automobile</option>
+        </select>
+        <span class="error-msg" id="err-dept">Please select your department.</span>
+      </div>
+
+      <div class="form-group">
+        <label>Roll Number *</label>
+        <input type="text" id="s-roll" placeholder="e.g. CS2024001" autocomplete="off" />
+        <span class="error-msg" id="err-roll">Roll number is required.</span>
+        <span class="error-msg" id="err-roll-dup">This roll number is already registered.</span>
+      </div>
+
+      <div class="form-group">
+        <label>Enrolled Subjects * <span style="font-weight:400;text-transform:none;color:var(--text-light);">(type & press Enter or comma)</span></label>
+        <div class="tag-input-wrapper" id="subjects-wrapper" onclick="document.getElementById('subject-input').focus()">
+          <input class="tag-input" id="subject-input" type="text"
+                 placeholder="e.g. Data Structures…" />
+        </div>
+        <span class="error-msg" id="err-subjects">Add at least one subject.</span>
+        <input type="hidden" id="s-subjects" />
+      </div>
+
+      <div class="form-group">
+        <label>Password *</label>
+        <input type="password" id="s-pw" placeholder="Create a strong password" autocomplete="new-password" />
+        <div class="form-hint warning">⚠ Minimum 8 characters with Capital, Small and Special characters must.</div>
+        <span class="error-msg" id="err-pw">Password does not meet requirements.</span>
+      </div>
+
+      <div class="form-group">
+        <label>Confirm Password *</label>
+        <input type="password" id="s-pw2" placeholder="Repeat your password" autocomplete="new-password" />
+        <span class="error-msg" id="err-pw2">Passwords do not match.</span>
+      </div>
+
+      <button class="btn btn-primary" onclick="submitStudent()">
+        <span id="btn-text">Create Student Account</span>
+        <div class="spinner" id="btn-spin" style="display:none;"></div>
+      </button>
+      <button class="btn btn-outline" onclick="history.back()">← Back</button>
+
+    </form>
+
+    <p class="link-text">Already have an account? <a href="/static/pages/index.html">Sign In</a></p>
+
+  </div>
+</div>
+
+<script src="/static/js/register_student.js"></script>
+</body>
+</html>

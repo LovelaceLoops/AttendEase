@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+*.pyo
+.env
+attendease.db
+# Don't commit your local DB
+*.db
+.DS_Store
+# macOS junk files
+venv/
+.venv/
+node_modules/
+*.log

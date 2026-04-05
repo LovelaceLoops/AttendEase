@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AttendEase — Professor Registration</title>
+  <link rel="stylesheet" href="/static/css/theme.css" />
+</head>
+<body>
+<div class="page-wrapper">
+  <div class="card" style="max-width:540px;">
+
+    <div class="brand">
+      <div class="brand-icon" style="background: linear-gradient(135deg,#f48fb1,#f06292);">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/>
+          <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+        </svg>
+      </div>
+      <h1>Professor</h1>
+      <p>Create your professor account</p>
+    </div>
+
+    <div id="alert-box" class="alert"></div>
+
+    <form id="professor-form" onsubmit="return false;">
+
+      <div class="form-group">
+        <label>Full Name *</label>
+        <input type="text" id="p-name" placeholder="e.g. Dr. Anita Mehta" autocomplete="name" />
+        <span class="error-msg" id="err-name">Name is required.</span>
+      </div>
+
+      <div class="form-group">
+        <label>Department *</label>
+        <select id="p-dept">
+          <option value="">— Select Department —</option>
+          <option>Computer Science</option>
+          <option>Artificial Inteligence and Machine Learning</option>
+          <option>Data Science</option>
+          <option>Mechanical</option>
+          <option>Civil</option>
+          <option>Automobile</option>
+          <option>Information and Technology</option>
+        </select>
+        <span class="error-msg" id="err-dept">Please select your department.</span>
+      </div>
+
+      <div class="form-group">
+        <label>Employee ID *</label>
+        <input type="text" id="p-empid" placeholder="e.g. PROF001" autocomplete="off" />
+        <span class="error-msg" id="err-empid">Employee ID is required.</span>
+        <span class="error-msg" id="err-empid-dup">This Employee ID is already registered.</span>
+      </div>
+
+      <div class="form-group">
+        <label>Subjects You Teach * <span style="font-weight:400;text-transform:none;color:var(--text-light);">(type & press Enter or comma)</span></label>
+        <div class="tag-input-wrapper" id="subjects-wrapper" onclick="document.getElementById('subject-input').focus()">
+          <input class="tag-input" id="subject-input" type="text"
+                 placeholder="e.g. Operating Systems…" />
+        </div>
+        <span class="error-msg" id="err-subjects">Add at least one subject.</span>
+        <input type="hidden" id="p-subjects" />
+      </div>
+
+      <div class="form-group">
+        <label>Password *</label>
+        <input type="password" id="p-pw" placeholder="Create a strong password" autocomplete="new-password" />
+        <div class="form-hint warning">⚠ Minimum 8 characters with Capital, Small and Special characters must.</div>
+        <span class="error-msg" id="err-pw">Password does not meet requirements.</span>
+      </div>
+
+      <div class="form-group">
+        <label>Confirm Password *</label>
+        <input type="password" id="p-pw2" placeholder="Repeat your password" autocomplete="new-password" />
+        <span class="error-msg" id="err-pw2">Passwords do not match.</span>
+      </div>
+
+      <button class="btn btn-accent" onclick="submitProfessor()">
+        <span id="btn-text">Create Professor Account</span>
+        <div class="spinner" id="btn-spin" style="display:none;"></div>
+      </button>
+      <button class="btn btn-outline" onclick="history.back()">← Back</button>
+
+    </form>
+
+    <p class="link-text">Already have an account? <a href="/static/pages/index.html">Sign In</a></p>
+
+  </div>
+</div>
+
+<script src="/static/js/register_professor.js"></script>
+</body>
+</html>

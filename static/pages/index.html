@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AttendEase — Smart Attendance System</title>
+  <link rel="stylesheet" href="/static/css/theme.css" />
+</head>
+<body>
+<div class="page-wrapper">
+  <div class="card" style="max-width:560px;">
+
+    <div class="brand">
+      <div class="brand-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+      </div>
+      <h1>AttendEase</h1>
+      <p>Smart QR-Based Attendance Recorder</p>
+    </div>
+
+    <div id="alert-box" class="alert"></div>
+
+    <!-- Step 1: Login / Register choice -->
+    <div id="step-auth">
+      <p class="page-title">Welcome Back!</p>
+      <p class="page-subtitle">Sign in or create a new account</p>
+
+      <div class="role-cards">
+        <div class="role-card student" onclick="showLogin()">
+          <div class="role-icon">🔑</div>
+          <h3>Login</h3>
+          <p>Already have an account</p>
+        </div>
+        <div class="role-card professor" onclick="showRegisterRole()">
+          <div class="role-icon">📋</div>
+          <h3>Register</h3>
+          <p>Create a new account</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2a: Login Form -->
+    <div id="step-login" style="display:none;">
+      <p class="page-title">Sign In</p>
+      <p class="page-subtitle">Enter your credentials to continue</p>
+
+      <div class="form-group">
+        <label>Roll Number / Employee ID</label>
+        <input type="text" id="login-id" placeholder="e.g. CS2024001 or PROF001" />
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="login-pw" placeholder="Your password" />
+      </div>
+
+      <button class="btn btn-primary" onclick="doLogin()">
+        <span>Sign In</span>
+      </button>
+      <button class="btn btn-outline" onclick="showStep('step-auth')">← Back</button>
+    </div>
+
+    <!-- Step 2b: Register — Choose role -->
+    <div id="step-register-role" style="display:none;">
+      <p class="page-title">Create Account</p>
+      <p class="page-subtitle">Who are you registering as?</p>
+
+      <div class="role-cards">
+        <div class="role-card student" onclick="goRegister('student')">
+          <div class="role-icon">🎓</div>
+          <h3>Student</h3>
+          <p>Record your attendance</p>
+        </div>
+        <div class="role-card professor" onclick="goRegister('professor')">
+          <div class="role-icon">👩‍🏫</div>
+          <h3>Professor</h3>
+          <p>Manage class sessions</p>
+        </div>
+      </div>
+      <button class="btn btn-outline" onclick="showStep('step-auth')" style="margin-top:8px;">← Back</button>
+    </div>
+
+  </div>
+</div>
+
+<script src="/static/js/landing.js"></script>
+</body>
+</html>

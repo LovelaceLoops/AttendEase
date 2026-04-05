@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AttendEase — Student Dashboard</title>
+  <link rel="stylesheet" href="/static/css/theme.css" />
+</head>
+<body>
+
+<!-- TOP NAV -->
+<nav class="topnav">
+  <span class="topnav-brand">AttendEase 🎓</span>
+  <div class="topnav-user">
+    <div class="avatar" id="nav-avatar">S</div>
+    <span style="font-size:0.85rem;font-weight:600;color:var(--text-mid);" id="nav-name">Student</span>
+    <button class="logout-btn" onclick="logout()">Logout</button>
+  </div>
+</nav>
+
+<div class="dashboard-wrapper">
+
+  <!-- Header -->
+  <div class="dashboard-header">
+    <h2 id="welcome-msg">Hello, Student! 👋</h2>
+    <p id="roll-dept">Roll No: — | Department: —</p>
+  </div>
+
+  <!-- Geofence Status -->
+  <div class="geo-indicator geo-out" id="geo-status">
+    <div class="geo-dot"></div>
+    <span id="geo-text">Checking your location...</span>
+  </div>
+
+  <!-- Active Session Banner -->
+  <div id="session-banner" class="panel" style="display:none;border:2px solid var(--primary);margin-bottom:20px;">
+    <div class="panel-header" style="background:linear-gradient(135deg,rgba(79,195,247,0.08),rgba(244,143,177,0.06));">
+      <h3>🔴 Active Attendance Session</h3>
+      <span class="badge badge-info" id="session-subject">—</span>
+    </div>
+    <div class="panel-body" style="text-align:center;">
+      <p style="color:var(--text-mid);margin-bottom:12px;">Session closes in:</p>
+      <div class="timer-ring">
+        <div class="timer-display" id="session-timer">10:00</div>
+        <div class="timer-label">minutes remaining</div>
+      </div>
+      <button class="btn btn-primary" onclick="startAttendance()" style="max-width:280px;margin:0 auto;">
+        📲 Mark My Attendance
+      </button>
+    </div>
+  </div>
+
+  <!-- Stats Row -->
+  <div class="stats-grid" id="stats-grid">
+    <div class="stat-card present">
+      <div class="stat-label">Present</div>
+      <div class="stat-value" id="stat-present">0</div>
+      <div class="stat-pct" id="pct-present">0%</div>
+    </div>
+    <div class="stat-card absent">
+      <div class="stat-label">Absent</div>
+      <div class="stat-value" id="stat-absent">0</div>
+      <div class="stat-pct" id="pct-absent">0%</div>
+    </div>
+    <div class="stat-card late">
+      <div class="stat-label">Late</div>
+      <div class="stat-value" id="stat-late">0</div>
+      <div class="stat-pct" id="pct-late">0%</div>
+    </div>
+    <div class="stat-card total">
+      <div class="stat-label">Overall %</div>
+      <div class="stat-value" id="stat-overall">0%</div>
+      <div class="stat-pct" id="stat-status">—</div>
+    </div>
+  </div>
+
+  <!-- Subject-wise Attendance -->
+  <div class="panel">
+    <div class="panel-header">
+      <h3>Subject-wise Attendance</h3>
+    </div>
+    <div class="panel-body" id="subject-attendance-list">
+      <p style="color:var(--text-light);text-align:center;padding:20px;">No records yet.</p>
+    </div>
+  </div>
+
+  <!-- Attendance Log Table -->
+  <div class="panel">
+    <div class="panel-header">
+      <h3>Attendance Log</h3>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Subject</th>
+            <th>Time</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="att-log-body">
+          <tr><td colspan="4" style="text-align:center;color:var(--text-light);padding:24px;">No records yet.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- FINGERPRINT MODAL -->
+<div class="modal-overlay" id="fp-modal">
+  <div class="modal">
+    <div class="fingerprint-anim">
+      <span class="fp-icon" id="fp-icon">👆</span>
+    </div>
+    <h3 id="fp-title">Verify Fingerprint</h3>
+    <p id="fp-msg">Please place your finger on the sensor to verify your identity before marking attendance.</p>
+    <button class="btn btn-primary" onclick="simulateFingerprint()" style="max-width:240px;margin:0 auto 10px;">
+      Scan Fingerprint
+    </button>
+    <button class="btn btn-outline" onclick="closeModal('fp-modal')" style="max-width:240px;margin:0 auto;">
+      Cancel
+    </button>
+  </div>
+</div>
+
+<!-- QR MODAL -->
+<div class="modal-overlay" id="qr-modal">
+  <div class="modal">
+    <div class="modal-icon">📷</div>
+    <h3>Scan Your QR Code</h3>
+    <p>Point your camera at the QR code on your student ID card. Ensure you are within 5m of the professor's device.</p>
+    <div class="qr-box" id="qr-scan-area" onclick="simulateQRScan()">
+      <span>📷</span>
+    </div>
+    <p style="font-size:0.75rem;color:var(--text-light);">Tap the camera area to simulate scan (demo mode)</p>
+    <button class="btn btn-outline" onclick="closeModal('qr-modal')" style="max-width:240px;margin:8px auto 0;">
+      Cancel
+    </button>
+  </div>
+</div>
+
+<!-- RESULT MODAL -->
+<div class="modal-overlay" id="result-modal">
+  <div class="modal">
+    <div class="modal-icon" id="result-icon">✅</div>
+    <h3 id="result-title">Attendance Marked!</h3>
+    <p id="result-msg">Your attendance has been successfully recorded.</p>
+    <button class="btn btn-primary" onclick="closeModal('result-modal')" style="max-width:240px;margin:0 auto;">
+      Done
+    </button>
+  </div>
+</div>
+
+<script src="/static/js/student_dashboard.js"></script>
+</body>
+</html>

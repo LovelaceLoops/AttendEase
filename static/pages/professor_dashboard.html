@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AttendEase — Professor Dashboard</title>
+  <link rel="stylesheet" href="/static/css/theme.css" />
+</head>
+<body>
+
+<!-- TOP NAV -->
+<nav class="topnav">
+  <span class="topnav-brand">AttendEase 👩‍🏫</span>
+  <div class="topnav-user">
+    <div class="avatar" id="nav-avatar" style="background:linear-gradient(135deg,var(--accent),var(--accent-dark));">P</div>
+    <span style="font-size:0.85rem;font-weight:600;color:var(--text-mid);" id="nav-name">Professor</span>
+    <button class="logout-btn" onclick="logout()">Logout</button>
+  </div>
+</nav>
+
+<div class="dashboard-wrapper">
+
+  <div class="dashboard-header">
+    <h2 id="welcome-msg">Hello, Professor! 👋</h2>
+    <p id="dept-info">Department: —</p>
+  </div>
+
+  <div id="alert-box" class="alert" style="margin-bottom:16px;"></div>
+
+  <!-- ---- START SESSION PANEL ---- -->
+  <div class="panel" style="margin-bottom:20px;">
+    <div class="panel-header">
+      <h3>🎯 Start Attendance Session</h3>
+      <span id="session-live-badge" class="badge badge-error" style="display:none;">● LIVE</span>
+    </div>
+    <div class="panel-body">
+      <div class="form-group">
+        <label>Select Subject</label>
+        <div class="subject-chips" id="subject-chips">
+          <!-- populated by JS -->
+        </div>
+        <input type="hidden" id="selected-subject" />
+      </div>
+
+      <div class="form-group">
+        <label>Lecture Time Frame</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div>
+            <label style="font-size:0.75rem;color:var(--text-light);text-transform:none;">Start</label>
+            <input type="time" id="lec-start" />
+          </div>
+          <div>
+            <label style="font-size:0.75rem;color:var(--text-light);text-transform:none;">End</label>
+            <input type="time" id="lec-end" />
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Attendance Window <span style="font-weight:400;text-transform:none;color:var(--text-light);">(default 10 min, max 10 min)</span></label>
+        <input type="number" id="session-duration" value="10" min="1" max="10" placeholder="Minutes" />
+      </div>
+
+      <div id="session-timer-wrap" style="display:none;text-align:center;margin:16px 0;">
+        <div class="timer-ring">
+          <div class="timer-display" id="session-countdown">10:00</div>
+          <div class="timer-label">session closing in</div>
+        </div>
+        <button class="btn btn-outline" onclick="stopSession()" style="max-width:200px;margin:0 auto;border-color:var(--error);color:var(--error);">
+          Stop Session Early
+        </button>
+      </div>
+
+      <button class="btn btn-accent" id="start-session-btn" onclick="startSession()">
+        ▶ Start Session
+      </button>
+    </div>
+  </div>
+
+  <!-- ---- MANUAL ATTENDANCE PANEL ---- -->
+  <div class="panel" style="margin-bottom:20px;">
+    <div class="panel-header">
+      <h3>📝 Manual Attendance (Marks as Late)</h3>
+    </div>
+    <div class="panel-body">
+      <div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:end;">
+        <div class="form-group" style="margin:0;">
+          <label>Student Roll Number</label>
+          <input type="text" id="manual-roll" placeholder="e.g. CS2024001" />
+        </div>
+        <button class="btn btn-primary" onclick="manualAttendance()" style="width:auto;padding:12px 20px;margin:0;">
+          Mark Late
+        </button>
+      </div>
+      <div id="manual-result" class="alert" style="margin-top:12px;"></div>
+    </div>
+  </div>
+
+  <!-- ---- CLASS STATS ---- -->
+  <div class="panel" style="margin-bottom:20px;">
+    <div class="panel-header">
+      <h3>📊 Class Attendance Overview</h3>
+      <select id="stats-subject-filter" onchange="loadClassStats()" style="padding:6px 12px;border-radius:8px;border:2px solid rgba(79,195,247,0.2);font-family:Poppins,sans-serif;font-size:0.82rem;color:var(--text-mid);">
+        <option value="all">All Subjects</option>
+      </select>
+    </div>
+    <div class="panel-body">
+      <div class="stats-grid" style="margin-bottom:0;">
+        <div class="stat-card present">
+          <div class="stat-label">Avg Present</div>
+          <div class="stat-value" id="cls-present">—</div>
+        </div>
+        <div class="stat-card absent">
+          <div class="stat-label">Avg Absent</div>
+          <div class="stat-value" id="cls-absent">—</div>
+        </div>
+        <div class="stat-card late">
+          <div class="stat-label">Avg Late</div>
+          <div class="stat-value" id="cls-late">—</div>
+        </div>
+        <div class="stat-card total">
+          <div class="stat-label">Students</div>
+          <div class="stat-value" id="cls-total">—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ---- DEFAULTERS ---- -->
+  <div class="panel" style="margin-bottom:20px;">
+    <div class="panel-header" style="background:rgba(239,83,80,0.04);">
+      <h3>⚠️ Defaulter Students <span style="font-weight:400;font-size:0.8rem;color:var(--text-light);">(attendance &lt; 75%)</span></h3>
+      <span class="badge badge-error" id="defaulter-count">0</span>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Roll No</th>
+            <th>Name</th>
+            <th>Subject</th>
+            <th>Attendance %</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="defaulter-body">
+          <tr><td colspan="5" style="text-align:center;color:var(--text-light);padding:24px;">No defaulters 🎉</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ---- FULL STUDENT LIST ---- -->
+  <div class="panel">
+    <div class="panel-header">
+      <h3>👥 All Students</h3>
+      <input type="text" id="student-search" placeholder="Search by name or roll…" oninput="filterStudents()"
+             style="padding:6px 14px;border-radius:20px;border:2px solid rgba(79,195,247,0.2);font-family:Poppins,sans-serif;font-size:0.82rem;outline:none;width:200px;" />
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Roll No</th>
+            <th>Name</th>
+            <th>Department</th>
+            <th>Present</th>
+            <th>Absent</th>
+            <th>Late</th>
+            <th>%</th>
+          </tr>
+        </thead>
+        <tbody id="students-body">
+          <tr><td colspan="7" style="text-align:center;color:var(--text-light);padding:24px;">No students enrolled yet.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- CONFIRM STOP SESSION MODAL -->
+<div class="modal-overlay" id="stop-modal">
+  <div class="modal">
+    <div class="modal-icon">⏹️</div>
+    <h3>Stop Session?</h3>
+    <p>Are you sure you want to end the attendance session early?</p>
+    <button class="btn btn-primary" onclick="confirmStop()" style="max-width:220px;margin:0 auto 8px;">Yes, Stop</button>
+    <button class="btn btn-outline" onclick="closeModal('stop-modal')" style="max-width:220px;margin:0 auto;">Cancel</button>
+  </div>
+</div>
+
+<script src="/static/js/professor_dashboard.js"></script>
+</body>
+</html>
