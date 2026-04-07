@@ -3,7 +3,7 @@
     "builder": "NIXPACKS"
   },
   "deploy": {
-    "startCommand": "python start.py",
+    "startCommand": "uvicorn.json",
     "restartPolicyType": "ON_FAILURE"
   }
 }
