@@ -40,7 +40,7 @@ async function doLogin() {
 
     if (!res.ok) { showAlert(data.detail || 'Login failed.'); return; }
 
-    sessionStorage.setItem('user', JSON.stringify(data));
+    localStorage.setItem('user', JSON.stringify(data));
 
     if (data.role === 'student')
       window.location.href = '/static/pages/student_dashboard.html';

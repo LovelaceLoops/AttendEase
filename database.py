@@ -9,12 +9,27 @@ from sqlalchemy import (
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 from datetime import datetime
 import os
-
+'''
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./attendease.db")
 
 engine = create_engine(
     DATABASE_URL,
     connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {}
+)
+'''
+
+# NEW
+import re
+
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./attendease.db")
+
+# Fix for Railway/Render which provide postgres:// but SQLAlchemy needs postgresql://
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+engine = create_engine(
+    DATABASE_URL,
+    connect_args={"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

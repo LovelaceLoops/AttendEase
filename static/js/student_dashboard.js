@@ -9,7 +9,7 @@ let currentSession = null;
 
 // ----------- INIT -----------
 document.addEventListener('DOMContentLoaded', async () => {
-  const raw = sessionStorage.getItem('user');
+  const raw = localStorage.getItem('user');
   if (!raw) { window.location.href = '/static/pages/index.html'; return; }
   user = JSON.parse(raw);
   if (user.role !== 'student') { window.location.href = '/static/pages/professor_dashboard.html'; return; }
@@ -287,6 +287,6 @@ function showResultModal(success, title, msg) {
 }
 
 function logout() {
-  sessionStorage.clear();
+  localStorage.clear();
   window.location.href = '/static/pages/index.html';
 }

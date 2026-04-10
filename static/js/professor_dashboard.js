@@ -7,7 +7,7 @@ let activeSessionId = null;
 let allStudents = [];
 
 document.addEventListener('DOMContentLoaded', async () => {
-  const raw = sessionStorage.getItem('user');
+  const raw = localStorage.getItem('user');
   if (!raw) { window.location.href = '/static/pages/index.html'; return; }
   user = JSON.parse(raw);
   if (user.role !== 'professor') { window.location.href = '/static/pages/student_dashboard.html'; return; }
@@ -283,6 +283,6 @@ function showAlert(msg, type='info') {
 }
 
 function logout() {
-  sessionStorage.clear();
+  localStorage.clear();
   window.location.href = '/static/pages/index.html';
 }
