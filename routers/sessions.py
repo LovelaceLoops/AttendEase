@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session as DBSession
 from pydantic import BaseModel
 from typing import Optional
-from datetime import datetime, timedelta,utcnow
+from datetime import datetime, timezone
 import uuid
 
 from database import get_db, AttendanceSession, Professor, Student, AttendanceRecord
@@ -66,7 +66,7 @@ def start_session(data: StartSessionRequest, db: DBSession = Depends(get_db)):
     db.query(AttendanceSession).filter(
         AttendanceSession.professor_id == data.professor_id,
         AttendanceSession.is_active == True
-    ).update({"is_active": False, "ended_at": datetime.utcnow()})
+    ).update({"is_active": False, "ended_at": datetime.now(timezone.utc)})
 
     session = AttendanceSession(
         id               = str(uuid.uuid4()),
@@ -98,7 +98,7 @@ def stop_session(session_id: str, db: DBSession = Depends(get_db)):
     mark_absentees(sess.id, sess.subject,db)
 
     sess.is_active = False
-    sess.ended_at  = datetime.utcnow()
+    sess.ended_at  = datetime.now(timezone.utc)
     db.commit()
     return {"message": "Session stopped."}
 
@@ -110,12 +110,12 @@ def get_active_session(db: DBSession = Depends(get_db)):
         return {"active": False}
 
     # Auto-expire if past duration
-    elapsed = (datetime.utcnow() - sess.started_at).total_seconds()
+    elapsed = (datetime.now(timezone.utc) - sess.started_at).total_seconds()
     window  = sess.duration_minutes * 60
     if elapsed >= window:
         mark_absentees(sess.id, sess.subject, db)
         sess.is_active = False
-        sess.ended_at  = datetime.utcnow()
+        sess.ended_at  = datetime.now(timezone.utc)
         db.commit()
         return {"active": False}
 
