@@ -4,10 +4,10 @@ from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session as DBSession
 from pydantic import BaseModel
 from typing import Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta,utcnow
 import uuid
 
-from database import get_db, AttendanceSession, Professor
+from database import get_db, AttendanceSession, Professor, Student, AttendanceRecord
 
 router = APIRouter()
 
@@ -24,6 +24,33 @@ class LocationUpdate(BaseModel):
     session_id: str
     lat: float
     lon: float
+
+def mark_absentees(session_id: str, subject: str, db: DBSession):
+    """Mark all enrolled students who didn't attend as absent."""
+    # Get all students enrolled in this subject
+    all_students = db.query(Student).all()
+    enrolled = [s for s in all_students if subject in (s.subjects or [])]
+
+    # Get student IDs who already have a record for this session
+    existing_records = db.query(AttendanceRecord).filter(
+        AttendanceRecord.session_id == session_id
+    ).all()
+    attended_ids = {r.student_id for r in existing_records}
+
+    # Insert absent record for everyone who didn't attend
+    for student in enrolled:
+        if student.id not in attended_ids:
+            absent_record = AttendanceRecord(
+                id         = str(uuid.uuid4()),
+                student_id = student.id,
+                session_id = session_id,
+                subject    = subject,
+                status     = "absent",
+                device_id  = "auto"
+            )
+            db.add(absent_record)
+
+    db.commit()
 
 
 @router.post("/session/start")
@@ -67,6 +94,9 @@ def stop_session(session_id: str, db: DBSession = Depends(get_db)):
     sess = db.query(AttendanceSession).filter(AttendanceSession.id == session_id).first()
     if not sess:
         raise HTTPException(status_code=404, detail="Session not found.")
+    
+    mark_absentees(sess.id, sess.subject,db)
+
     sess.is_active = False
     sess.ended_at  = datetime.utcnow()
     db.commit()
@@ -83,6 +113,7 @@ def get_active_session(db: DBSession = Depends(get_db)):
     elapsed = (datetime.utcnow() - sess.started_at).total_seconds()
     window  = sess.duration_minutes * 60
     if elapsed >= window:
+        mark_absentees(sess.id, sess.subject, db)
         sess.is_active = False
         sess.ended_at  = datetime.utcnow()
         db.commit()
