@@ -7,7 +7,7 @@ import math
 
 router = APIRouter()
 
-RADIUS_METRES = 5.0
+RADIUS_METRES = 30.0
 
 
 def haversine(lat1, lon1, lat2, lon2) -> float:
@@ -20,7 +20,7 @@ def haversine(lat1, lon1, lat2, lon2) -> float:
 
 
 @router.get("/geofence/check")
-def check_geofence(lat: float, lon: float, student_id: str, db: DBSession = Depends(get_db)):
+def check_geofence(lat: float, lon: float, student_id: str, accuracy:float=20.0, db: DBSession = Depends(get_db)):
     """Check if the student is within 5m of the active session's professor."""
     session = db.query(AttendanceSession).filter(
         AttendanceSession.is_active == True
