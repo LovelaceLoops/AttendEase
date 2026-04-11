@@ -5,7 +5,9 @@ const API = '';
 const PW_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,}$/;
 
 let enrolledSubjects = [];
+let createdStudentId = null;   // set after account creation, used by biometric step
 
+// ── Tag input setup ───────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   const wrapper = document.getElementById('subjects-wrapper');
   const input   = document.getElementById('subject-input');
@@ -46,6 +48,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
+// ── Error helpers ─────────────────────────────────────────────────────────────
 function showErr(id)  { document.getElementById(id).classList.add('show'); }
 function hideErr(id)  { document.getElementById(id).classList.remove('show'); }
 function markErr(fieldId, errId) {
@@ -60,12 +63,36 @@ function showAlert(msg, type='error') {
   if (type !== 'error') setTimeout(() => el.className = 'alert', 6000);
 }
 
-// ── WebAuthn helpers ──────────────────────────────────────────────────────────
+// ── Step navigation ───────────────────────────────────────────────────────────
+function showBiometricStep() {
+  document.getElementById('step-form').style.display      = 'none';
+  document.getElementById('step-biometric').style.display = 'block';
+}
 
+function setFpUI(icon, title, msg, statusText, statusColor, showBtn) {
+  document.getElementById('fp-reg-icon').textContent  = icon;
+  document.getElementById('fp-reg-title').textContent = title;
+  document.getElementById('fp-reg-msg').textContent   = msg;
+
+  const badge = document.getElementById('fp-status-badge');
+  const text  = document.getElementById('fp-status-text');
+  if (statusText) {
+    badge.style.display     = 'block';
+    text.textContent        = statusText;
+    text.style.background   = statusColor || 'rgba(79,195,247,0.12)';
+    text.style.color        = statusColor ? '#fff' : 'var(--primary)';
+  } else {
+    badge.style.display = 'none';
+  }
+
+  const btn = document.getElementById('fp-reg-btn');
+  if (btn) btn.style.display = showBtn ? 'block' : 'none';
+}
+
+// ── WebAuthn helpers ──────────────────────────────────────────────────────────
 function b64urlToBuffer(str) {
-  // Safely convert a base64url string to ArrayBuffer
   if (!str || typeof str !== 'string') {
-    throw new Error('Expected a base64url string but got: ' + typeof str);
+    throw new Error('Expected base64url string, got: ' + typeof str);
   }
   str = str.replace(/-/g, '+').replace(/_/g, '/');
   while (str.length % 4) str += '=';
@@ -82,42 +109,21 @@ function bufferToB64url(buffer) {
   return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
 }
 
-/**
- * py_webauthn's options_to_json() returns:
- *   challenge  → base64url string
- *   user.id    → base64url string  (NOT a raw bytes field)
- *   excludeCredentials[].id → base64url string
- *
- * The browser's navigator.credentials.create() expects:
- *   challenge  → ArrayBuffer
- *   user.id    → ArrayBuffer
- *   excludeCredentials[].id → ArrayBuffer
- *
- * So we decode each base64url string into an ArrayBuffer.
- */
 function prepareRegistrationOptions(options) {
-  // Decode challenge
   if (typeof options.challenge === 'string') {
     options.challenge = b64urlToBuffer(options.challenge);
   }
-
-  // Decode user.id — py_webauthn sends this as base64url string
   if (options.user && typeof options.user.id === 'string') {
     options.user.id = b64urlToBuffer(options.user.id);
   }
-
-  // Decode excludeCredentials ids
   if (Array.isArray(options.excludeCredentials)) {
     options.excludeCredentials = options.excludeCredentials.map(c => ({
-      ...c,
-      id: typeof c.id === 'string' ? b64urlToBuffer(c.id) : c.id
+      ...c, id: typeof c.id === 'string' ? b64urlToBuffer(c.id) : c.id
     }));
   }
-
   return options;
 }
 
-// Serialize the browser's credential object back to JSON for the server
 function serializeCredential(credential) {
   return {
     id:    credential.id,
@@ -130,80 +136,97 @@ function serializeCredential(credential) {
   };
 }
 
-// ── Biometric enrollment after account creation ───────────────────────────────
-
-async function registerBiometric(studentId) {
+// ── Fingerprint enrollment (called from Step 2 button) ────────────────────────
+async function startFingerprintEnrollment() {
   if (!window.PublicKeyCredential) {
-    showAlert('Your browser does not support biometric auth. Use Chrome on Android or Safari on iPhone.', 'error');
-    return false;
+    setFpUI('❌', 'Not Supported',
+      'Your browser does not support biometric authentication. Please use Chrome on Android or Safari on iPhone.',
+      'Unsupported', 'rgba(239,83,80,0.8)', false);
+    document.getElementById('fp-skip-btn').style.display = 'block';
+    return;
   }
 
-  showAlert('📲 Setting up biometric… Follow your device prompt.', 'info');
+  // Scanning state
+  setFpUI('⏳', 'Scanning…',
+    'Follow the prompt on your device to scan your fingerprint or face.',
+    'Scanning…', null, false);
+  document.getElementById('fp-skip-btn').style.display = 'none';
 
   try {
     // Step 1: Get options from server
     const beginRes = await fetch(`${API}/api/webauthn/register/begin`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ student_id: studentId })
+      body:    JSON.stringify({ student_id: createdStudentId })
     });
 
     if (!beginRes.ok) {
       const err = await beginRes.json();
-      throw new Error(err.detail || 'Could not start biometric registration.');
+      throw new Error(err.detail || 'Server error starting biometric setup.');
     }
 
     const rawOptions = await beginRes.json();
-    console.log('WebAuthn register options from server:', JSON.stringify(rawOptions));
+    console.log('WebAuthn register options:', JSON.stringify(rawOptions));
+    const options = prepareRegistrationOptions(rawOptions);
 
-    // Step 2: Prepare options for browser API
-    let options;
-    try {
-      options = prepareRegistrationOptions(rawOptions);
-    } catch(e) {
-      throw new Error('Failed to parse server options: ' + e.message);
-    }
-
-    // Step 3: Trigger device fingerprint / face prompt
+    // Step 2: Trigger device biometric prompt
     let credential;
     try {
       credential = await navigator.credentials.create({ publicKey: options });
-    } catch (e) {
+    } catch(e) {
       if (e.name === 'NotAllowedError') {
-        showAlert('Biometric prompt was cancelled. You can register later from your dashboard.', 'error');
+        setFpUI('❌', 'Cancelled',
+          'The fingerprint prompt was dismissed. Tap the button below to try again.',
+          'Cancelled', 'rgba(239,83,80,0.8)', true);
       } else {
-        showAlert(`Biometric setup failed: ${e.message}`, 'error');
+        setFpUI('❌', 'Failed',
+          `Something went wrong: ${e.message}. Tap the button to try again.`,
+          'Error', 'rgba(239,83,80,0.8)', true);
       }
-      return false;
+      document.getElementById('fp-skip-btn').style.display = 'block';
+      return;
     }
 
-    // Step 4: Send to server for verification and storage
+    // Step 3: Send to server
     const completeRes = await fetch(`${API}/api/webauthn/register/complete`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({
-        student_id: studentId,
+        student_id: createdStudentId,
         credential: serializeCredential(credential)
       })
     });
 
     if (!completeRes.ok) {
       const err = await completeRes.json();
-      throw new Error(err.detail || 'Server could not verify biometric.');
+      throw new Error(err.detail || 'Server could not verify fingerprint.');
     }
 
-    showAlert('✅ Biometric registered! Redirecting to login…', 'success');
-    return true;
+    // ── SUCCESS ──
+    setFpUI('✅', 'Fingerprint Registered!',
+      'Your fingerprint has been successfully linked to your account. Redirecting to login…',
+      '✅ Success', 'rgba(76,175,80,0.8)', false);
+    document.getElementById('fp-skip-btn').style.display = 'none';
 
-  } catch (e) {
-    console.error('WebAuthn registration error:', e);
-    showAlert(`Biometric setup failed: ${e.message}`, 'error');
-    return false;
+    setTimeout(() => {
+      window.location.href = '/static/pages/index.html';
+    }, 2000);
+
+  } catch(e) {
+    console.error('WebAuthn error:', e);
+    setFpUI('❌', 'Registration Failed',
+      `${e.message}. Please try again or skip and register later from your dashboard.`,
+      'Failed', 'rgba(239,83,80,0.8)', true);
+    document.getElementById('fp-skip-btn').style.display = 'block';
   }
 }
 
-// ── Account creation ──────────────────────────────────────────────────────────
+// ── Skip biometric ────────────────────────────────────────────────────────────
+function skipBiometric() {
+  window.location.href = '/static/pages/index.html';
+}
 
+// ── Account creation (Step 1 submit) ─────────────────────────────────────────
 async function submitStudent() {
   let valid = true;
 
@@ -230,7 +253,6 @@ async function submitStudent() {
   document.getElementById('btn-spin').style.display = 'inline-block';
 
   try {
-    // Step 1: Create account
     const res  = await fetch(`${API}/api/register/student`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -247,16 +269,9 @@ async function submitStudent() {
       return;
     }
 
-    const studentId = data.id;
-    showAlert('✅ Account created! Setting up biometric authentication…', 'success');
-
-    // Step 2: Enroll biometric
-    await new Promise(r => setTimeout(r, 1000));
-    const biometricOk = await registerBiometric(studentId);
-
-    // Redirect regardless of biometric result — account is already created
-    await new Promise(r => setTimeout(r, biometricOk ? 1500 : 3500));
-    window.location.href = '/static/pages/index.html';
+    // Account created — store student ID and move to Step 2
+    createdStudentId = data.id;
+    showBiometricStep();
 
   } catch(e) {
     showAlert('Server error. Please try again.');
