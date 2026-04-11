@@ -83,7 +83,7 @@ class AttendanceSession(Base):
     is_active       = Column(Boolean, default=True)
     prof_lat        = Column(Float, nullable=True)
     prof_lon        = Column(Float, nullable=True)
-    started_at      = Column(DateTime, default=datetime.noe(timezone.utc))
+    started_at      = Column(DateTime, default=datetime.now(timezone.utc))
     ended_at        = Column(DateTime, nullable=True)
 
     professor = relationship("Professor", back_populates="sessions")
