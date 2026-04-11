@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadLog();
   startGeoWatch();
   pollForSession();
-  checkBiometricStatus();   // warn if biometric not set up
+  checkBiometricStatus();
 });
 
 // ----------- BIOMETRIC STATUS CHECK -----------
@@ -33,7 +33,6 @@ async function checkBiometricStatus() {
     if (!res.ok) return;
     const data = await res.json();
     if (!data.registered) {
-      // Show a persistent warning nudging the student to register biometric
       const el = document.getElementById('biometric-warning');
       if (el) el.style.display = 'block';
     }
@@ -59,6 +58,19 @@ function b64urlEncode(buffer) {
   return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
 }
 
+// Used by enrollBiometricNow() for registration
+function prepareRegistrationOptions(options) {
+  options.challenge = b64urlDecode(options.challenge);
+  options.user.id   = b64urlDecode(options.user.id);
+  if (options.excludeCredentials) {
+    options.excludeCredentials = options.excludeCredentials.map(c => ({
+      ...c, id: b64urlDecode(c.id)
+    }));
+  }
+  return options;
+}
+
+// Used by verifyBiometric() for authentication
 function prepareAuthOptions(options) {
   options.challenge = b64urlDecode(options.challenge);
   if (options.allowCredentials) {
@@ -69,6 +81,7 @@ function prepareAuthOptions(options) {
   return options;
 }
 
+// Used by verifyBiometric() — serializes auth response for server
 function serializeAuthCredential(credential) {
   return {
     id:    credential.id,
@@ -85,20 +98,91 @@ function serializeAuthCredential(credential) {
   };
 }
 
-// ----------- REAL BIOMETRIC VERIFICATION -----------
+// Used by enrollBiometricNow() — serializes registration response for server
+function serializeCredential(credential) {
+  return {
+    id:    credential.id,
+    rawId: b64urlEncode(credential.rawId),
+    type:  credential.type,
+    response: {
+      clientDataJSON:    b64urlEncode(credential.response.clientDataJSON),
+      attestationObject: b64urlEncode(credential.response.attestationObject),
+    }
+  };
+}
+
+// ----------- ENROLL BIOMETRIC FROM DASHBOARD -----------
+async function enrollBiometricNow() {
+  if (!window.PublicKeyCredential) {
+    alert('Your browser does not support biometric authentication. Please use Chrome on Android.');
+    return;
+  }
+
+  try {
+    // Step 1: Get registration options from server
+    const beginRes = await fetch(`${API}/api/webauthn/register/begin`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ student_id: user.id })
+    });
+
+    if (!beginRes.ok) {
+      const err = await beginRes.json();
+      alert('Could not start biometric setup: ' + (err.detail || 'Unknown error'));
+      return;
+    }
+
+    const options = await beginRes.json();
+
+    // Step 2: Trigger device fingerprint / face prompt
+    let credential;
+    try {
+      credential = await navigator.credentials.create({
+        publicKey: prepareRegistrationOptions(options)
+      });
+    } catch(e) {
+      alert('Fingerprint prompt was cancelled or failed: ' + e.message);
+      return;
+    }
+
+    // Step 3: Send verified credential to server
+    const completeRes = await fetch(`${API}/api/webauthn/register/complete`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({
+        student_id: user.id,
+        credential: serializeCredential(credential)
+      })
+    });
+
+    if (!completeRes.ok) {
+      const err = await completeRes.json();
+      alert('Server rejected biometric: ' + (err.detail || 'Unknown error'));
+      return;
+    }
+
+    // Success — hide the warning banner
+    alert('✅ Fingerprint registered successfully! You can now mark attendance.');
+    document.getElementById('biometric-warning').style.display = 'none';
+
+  } catch(e) {
+    alert('Error during biometric setup: ' + e.message);
+  }
+}
+
+// ----------- REAL BIOMETRIC VERIFICATION (at attendance time) -----------
 async function verifyBiometric() {
   if (!window.PublicKeyCredential) {
     showResultModal(false, 'Not Supported', 'Your browser does not support biometric authentication. Please use Chrome on Android or Safari on iPhone.');
     return false;
   }
 
-  // Update modal UI to scanning state
   document.getElementById('fp-icon').textContent  = '⏳';
   document.getElementById('fp-title').textContent = 'Verifying…';
   document.getElementById('fp-msg').textContent   = 'Please scan your fingerprint when prompted by your device.';
 
   try {
-    // Step 1: Get challenge from server
+    // Step 1: Get auth challenge from server
     const beginRes = await fetch(`${API}/api/webauthn/auth/begin`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -107,11 +191,10 @@ async function verifyBiometric() {
 
     if (!beginRes.ok) {
       const err = await beginRes.json();
-      // Student has no biometric registered
       if (beginRes.status === 404) {
         document.getElementById('fp-icon').textContent  = '⚠️';
         document.getElementById('fp-title').textContent = 'Biometric Not Set Up';
-        document.getElementById('fp-msg').textContent   = err.detail || 'No fingerprint registered. Please re-register your account.';
+        document.getElementById('fp-msg').textContent   = 'No fingerprint registered. Tap Cancel and use the Register button on your dashboard.';
         return false;
       }
       throw new Error(err.detail || 'Could not start biometric verification.');
@@ -126,15 +209,11 @@ async function verifyBiometric() {
         publicKey: prepareAuthOptions(options)
       });
     } catch (e) {
-      if (e.name === 'NotAllowedError') {
-        document.getElementById('fp-icon').textContent  = '❌';
-        document.getElementById('fp-title').textContent = 'Cancelled';
-        document.getElementById('fp-msg').textContent   = 'Biometric prompt was dismissed. Please try again.';
-      } else {
-        document.getElementById('fp-icon').textContent  = '❌';
-        document.getElementById('fp-title').textContent = 'Failed';
-        document.getElementById('fp-msg').textContent   = `Error: ${e.message}`;
-      }
+      document.getElementById('fp-icon').textContent  = '❌';
+      document.getElementById('fp-title').textContent = e.name === 'NotAllowedError' ? 'Cancelled' : 'Failed';
+      document.getElementById('fp-msg').textContent   = e.name === 'NotAllowedError'
+        ? 'Biometric prompt was dismissed. Please try again.'
+        : `Error: ${e.message}`;
       return false;
     }
 
@@ -156,7 +235,6 @@ async function verifyBiometric() {
       return false;
     }
 
-    // Success
     document.getElementById('fp-icon').textContent  = '✅';
     document.getElementById('fp-title').textContent = 'Verified!';
     document.getElementById('fp-msg').textContent   = 'Fingerprint confirmed. Proceed to scan your QR code.';
@@ -262,7 +340,6 @@ function startAttendance() {
     return;
   }
 
-  // Reset modal state and open fingerprint modal
   fingerprintVerified = false;
   document.getElementById('fp-icon').textContent  = '👆';
   document.getElementById('fp-title').textContent = 'Verify Fingerprint';
@@ -271,9 +348,7 @@ function startAttendance() {
   openModal('fp-modal');
 }
 
-// Called when student taps "Scan Fingerprint" button inside the modal
 async function simulateFingerprint() {
-  // Disable the button to prevent double-tap
   const btn = document.getElementById('fp-scan-btn');
   if (btn) btn.style.display = 'none';
 
@@ -281,13 +356,11 @@ async function simulateFingerprint() {
 
   if (verified) {
     fingerprintVerified = true;
-    // Auto-advance to QR modal after short delay
     setTimeout(() => {
       closeModal('fp-modal');
       openModal('qr-modal');
     }, 1200);
   } else {
-    // Show the button again so they can retry
     if (btn) btn.style.display = 'inline-block';
   }
 }
@@ -420,76 +493,4 @@ function showResultModal(success, title, msg) {
 function logout() {
   localStorage.clear();
   window.location.href = '/static/pages/index.html';
-}
-
-// biometrics ___________________________________________________________________________________________
-async function enrollBiometricNow() {
-  if (!window.PublicKeyCredential) {
-    alert('Your browser does not support biometric authentication. Please use Chrome on Android.');
-    return;
-  }
-
-  try {
-    // Step 1: Get registration options from server
-    const beginRes = await fetch(`${API}/api/webauthn/register/begin`, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ student_id: user.id })
-    });
-
-    if (!beginRes.ok) {
-      const err = await beginRes.json();
-      alert('Could not start biometric setup: ' + (err.detail || 'Unknown error'));
-      return;
-    }
-
-    const options = await beginRes.json();
-
-    // Step 2: Trigger device fingerprint prompt
-    let credential;
-    try {
-      credential = await navigator.credentials.create({
-        publicKey: prepareRegistrationOptions(options)
-      });
-    } catch(e) {
-      alert('Fingerprint prompt was cancelled or failed: ' + e.message);
-      return;
-    }
-
-    // Step 3: Send to server
-    const completeRes = await fetch(`${API}/api/webauthn/register/complete`, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({
-        student_id: user.id,
-        credential: serializeCredential(credential)
-      })
-    });
-
-    if (!completeRes.ok) {
-      const err = await completeRes.json();
-      alert('Server rejected biometric: ' + (err.detail || 'Unknown error'));
-      return;
-    }
-
-    // Success — hide the warning
-    alert('✅ Fingerprint registered successfully!');
-    document.getElementById('biometric-warning').style.display = 'none';
-
-  } catch(e) {
-    alert('Error: ' + e.message);
-  }
-}
-
-// Also need this helper for credential serialization (same as in register_student.js)
-function serializeCredential(credential) {
-  return {
-    id:    credential.id,
-    rawId: b64urlEncode(credential.rawId),
-    type:  credential.type,
-    response: {
-      clientDataJSON:    b64urlEncode(credential.response.clientDataJSON),
-      attestationObject: b64urlEncode(credential.response.attestationObject),
-    }
-  };
 }
