@@ -6,10 +6,9 @@
   <title>AttendEase — Student Dashboard</title>
   <link rel="stylesheet" href="/static/css/theme.css" />
   <link rel="manifest" href="/static/manifest.json">
-<meta name="theme-color" content="#4fc3f7">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="AttendEase">
-
+  <meta name="theme-color" content="#4fc3f7">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="AttendEase">
 </head>
 <body>
 
@@ -29,6 +28,13 @@
   <div class="dashboard-header">
     <h2 id="welcome-msg">Hello, Student! 👋</h2>
     <p id="roll-dept">Roll No: — | Department: —</p>
+  </div>
+
+  <!-- Biometric not registered warning — hidden by default, shown by JS -->
+  <div id="biometric-warning" style="display:none;background:rgba(239,83,80,0.08);border:1.5px solid var(--error);border-radius:12px;padding:14px 18px;margin-bottom:16px;font-size:0.85rem;color:var(--error);">
+    ⚠️ <strong>Biometric not set up on this device.</strong>
+    You will not be able to mark attendance until your fingerprint is registered.
+    Please log out and re-register your account on this device, or contact your professor.
   </div>
 
   <!-- Geofence Status -->
@@ -113,15 +119,19 @@
 
 </div>
 
-<!-- FINGERPRINT MODAL -->
+<!-- ── FINGERPRINT MODAL ─────────────────────────────────────────────────── -->
 <div class="modal-overlay" id="fp-modal">
   <div class="modal">
     <div class="fingerprint-anim">
       <span class="fp-icon" id="fp-icon">👆</span>
     </div>
     <h3 id="fp-title">Verify Fingerprint</h3>
-    <p id="fp-msg">Please place your finger on the sensor to verify your identity before marking attendance.</p>
-    <button class="btn btn-primary" onclick="simulateFingerprint()" style="max-width:240px;margin:0 auto 10px;">
+    <p id="fp-msg">Tap the button below. Your device will ask you to scan your fingerprint or face.</p>
+    <!--
+      id="fp-scan-btn" is referenced in student_dashboard.js to show/hide during scan.
+      onclick calls simulateFingerprint() which now triggers real WebAuthn.
+    -->
+    <button class="btn btn-primary" id="fp-scan-btn" onclick="simulateFingerprint()" style="max-width:240px;margin:0 auto 10px;">
       Scan Fingerprint
     </button>
     <button class="btn btn-outline" onclick="closeModal('fp-modal')" style="max-width:240px;margin:0 auto;">
@@ -130,12 +140,12 @@
   </div>
 </div>
 
-<!-- QR MODAL -->
+<!-- ── QR MODAL ──────────────────────────────────────────────────────────── -->
 <div class="modal-overlay" id="qr-modal">
   <div class="modal">
     <div class="modal-icon">📷</div>
     <h3>Scan Your QR Code</h3>
-    <p>Point your camera at the QR code on your student ID card. Ensure you are within 5m of the professor's device.</p>
+    <p>Point your camera at the QR code on your student ID card. Ensure you are within range of the professor's device.</p>
     <div class="qr-box" id="qr-scan-area" onclick="simulateQRScan()">
       <span>📷</span>
     </div>
@@ -146,7 +156,7 @@
   </div>
 </div>
 
-<!-- RESULT MODAL -->
+<!-- ── RESULT MODAL ───────────────────────────────────────────────────────── -->
 <div class="modal-overlay" id="result-modal">
   <div class="modal">
     <div class="modal-icon" id="result-icon">✅</div>

@@ -9,7 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 import uvicorn
 
-from routers import auth, attendance, sessions, students, stats, geofence
+from routers import auth, attendance, sessions, students, stats, geofence, webauthn_router
 
 app = FastAPI(title="AttendEase API", version="1.0.0")
 
@@ -23,12 +23,13 @@ app.add_middleware(
 )
 
 # ---- ROUTERS ----
-app.include_router(auth.router,       prefix="/api", tags=["Auth"])
-app.include_router(attendance.router, prefix="/api", tags=["Attendance"])
-app.include_router(sessions.router,   prefix="/api", tags=["Sessions"])
-app.include_router(students.router,   prefix="/api", tags=["Students"])
-app.include_router(stats.router,      prefix="/api", tags=["Stats"])
-app.include_router(geofence.router,   prefix="/api", tags=["Geofence"])
+app.include_router(auth.router,            prefix="/api", tags=["Auth"])
+app.include_router(attendance.router,      prefix="/api", tags=["Attendance"])
+app.include_router(sessions.router,        prefix="/api", tags=["Sessions"])
+app.include_router(students.router,        prefix="/api", tags=["Students"])
+app.include_router(stats.router,           prefix="/api", tags=["Stats"])
+app.include_router(geofence.router,        prefix="/api", tags=["Geofence"])
+app.include_router(webauthn_router.router, prefix="/api", tags=["WebAuthn"])
 
 # ---- STATIC FILES ----
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -64,6 +65,5 @@ async def service_worker():
     return FileResponse("static/sw.js",
                         headers={"Service-Worker-Allowed": "/"})
 
-import uvicorn
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
