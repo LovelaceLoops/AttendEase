@@ -33,9 +33,9 @@ from database import get_db, Student, WebAuthnCredential
 
 router = APIRouter()
 
-RP_ID     = "attendease-1-rw1n.onrender.com"
+RP_ID     = "attendease-nao1.onrender.com"
 RP_NAME   = "AttendEase"
-RP_ORIGIN = "https://attendease-1-rw1n.onrender.com"
+RP_ORIGIN = "https://attendease-nao1.onrender.com"
 
 # In-memory challenge store (use Redis in production for multi-instance)
 # Key: student_id, Value: base64url challenge string
