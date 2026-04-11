@@ -25,22 +25,34 @@ function showAlert(msg, type='error') {
 }
 
 async function doLogin() {
-  const uid  = document.getElementById('login-id').value.trim();
-  const pw   = document.getElementById('login-pw').value;
-
+  const uid = document.getElementById('login-id').value.trim();
+  const pw  = document.getElementById('login-pw').value;
   if (!uid || !pw) { showAlert('Please enter your ID and password.'); return; }
+
+  // Capture GPS coordinates before sending login
+  let lat = null, lon = null;
+  try {
+    const pos = await new Promise((resolve, reject) =>
+      navigator.geolocation.getCurrentPosition(resolve, reject, {
+        enableHighAccuracy: true, timeout: 8000
+      })
+    );
+    lat = pos.coords.latitude;
+    lon = pos.coords.longitude;
+  } catch(e) {
+    // GPS unavailable or denied — login still proceeds, coordinates will be null
+  }
 
   try {
     const res  = await fetch(`${API}/api/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ identifier: uid, password: pw })
+      body: JSON.stringify({ identifier: uid, password: pw, lat, lon })
     });
     const data = await res.json();
-
     if (!res.ok) { showAlert(data.detail || 'Login failed.'); return; }
 
-    localStorage.setItem('user', JSON.stringify(data));
+    sessionStorage.setItem('user', JSON.stringify(data));
 
     if (data.role === 'student')
       window.location.href = '/static/pages/student_dashboard.html';

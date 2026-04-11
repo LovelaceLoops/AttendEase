@@ -52,8 +52,10 @@ class ProfessorRegister(BaseModel):
         return v
 
 class LoginRequest(BaseModel):
-    identifier: str  # roll_number or employee_id
+    identifier: str
     password: str
+    lat: float | None = None
+    lon: float | None = None
 
 
 # ---- ROUTES ----
@@ -118,6 +120,11 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
     # Try professor
     prof = db.query(Professor).filter(Professor.employee_id == data.identifier).first()
     if prof and check_pw(data.password, prof.password):
+    # Store login-time coordinates
+        if data.lat is not None and data.lon is not None:
+            prof.login_lat = data.lat
+            prof.login_lon = data.lon
+            db.commit()
         return {
             "role":        "professor",
             "id":          prof.id,

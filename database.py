@@ -7,7 +7,7 @@ from sqlalchemy import (
     Boolean, DateTime, ForeignKey, JSON, Text
 )
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
-from datetime import datetime
+from datetime import datetime, timezone
 import os
 '''
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./attendease.db")
@@ -64,7 +64,9 @@ class Professor(Base):
     employee_id = Column(String, unique=True, nullable=False, index=True)
     subjects    = Column(JSON, default=list)
     password    = Column(String, nullable=False)
-    created_at  = Column(DateTime, default=datetime.utcnow)
+    created_at  = Column(DateTime, default=datetime.now(timezone.utc))
+    login_lat = Column(Float, nullable=True)
+    login_lon = Column(Float, nullable=True)
 
     sessions = relationship("AttendanceSession", back_populates="professor", cascade="all,delete")
 

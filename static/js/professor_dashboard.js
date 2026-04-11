@@ -91,7 +91,7 @@ async function startSession() {
     startCountdown(duration * 60);
 
     // Share professor location for geofencing
-    shareLocation(data.session_id);
+    //shareLocation(data.session_id);
 
   } catch(e) {
     showAlert('Server error. Please try again.', 'error');
@@ -138,21 +138,20 @@ function endSessionUI() {
   loadClassStats();
 }
 
-// Share professor GPS for geofencing
-function shareLocation(sessionId) {
-  if (!navigator.geolocation) return;
-  navigator.geolocation.watchPosition(pos => {
-    fetch(`${API}/api/session/location`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        session_id: sessionId,
-        lat: pos.coords.latitude,
-        lon: pos.coords.longitude
-      })
-    }).catch(() => {});
-  }, null, { enableHighAccuracy: true, maximumAge: 5000 });
-}
+//function shareLocation(sessionId) {
+ // if (!navigator.geolocation) return;
+  //navigator.geolocation.watchPosition(pos => {
+    //fetch(`${API}/api/session/location`, {
+      //method: 'POST',
+      //headers: { 'Content-Type': 'application/json' },
+      //body: JSON.stringify({
+        //session_id: sessionId,
+        //lat: pos.coords.latitude,
+        //lon: pos.coords.longitude
+      //})
+    //}).catch(() => {});
+  //}, null, { enableHighAccuracy: true, maximumAge: 5000 });
+//}
 
 // ----------- MANUAL ATTENDANCE -----------
 async function manualAttendance() {
