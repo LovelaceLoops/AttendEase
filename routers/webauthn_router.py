@@ -33,11 +33,9 @@ from database import get_db, Student, WebAuthnCredential
 
 router = APIRouter()
 
-# ── Change this to your actual deployed domain ──────────────────────────────
-RP_ID     = "attendease.onrender.com"   # NO https://, NO trailing slash
+RP_ID     = "attendease-1-rw1n.onrender.com"
 RP_NAME   = "AttendEase"
-RP_ORIGIN = "https://attendease.onrender.com"
-# ────────────────────────────────────────────────────────────────────────────
+RP_ORIGIN = "https://attendease-1-rw1n.onrender.com"
 
 # In-memory challenge store (use Redis in production for multi-instance)
 # Key: student_id, Value: base64url challenge string

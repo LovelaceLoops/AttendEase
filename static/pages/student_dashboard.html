@@ -175,5 +175,15 @@
   }
 </script>
 
+<!--Biomertics------------------------------------->
+<div id="biometric-warning" style="display:none;background:rgba(239,83,80,0.08);border:1.5px solid var(--error);border-radius:12px;padding:14px 18px;margin-bottom:16px;font-size:0.85rem;color:var(--error);">
+  ⚠️ <strong>Biometric not set up on this device.</strong>
+  You will not be able to mark attendance until your fingerprint is registered.
+  <br/><br/>
+  <button class="btn btn-primary" onclick="enrollBiometricNow()" style="font-size:0.85rem;padding:10px 20px;margin:0;">
+    👆 Register Fingerprint Now
+  </button>
+</div>
+
 </body>
 </html>

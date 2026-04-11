@@ -421,3 +421,75 @@ function logout() {
   localStorage.clear();
   window.location.href = '/static/pages/index.html';
 }
+
+// biometrics ___________________________________________________________________________________________
+async function enrollBiometricNow() {
+  if (!window.PublicKeyCredential) {
+    alert('Your browser does not support biometric authentication. Please use Chrome on Android.');
+    return;
+  }
+
+  try {
+    // Step 1: Get registration options from server
+    const beginRes = await fetch(`${API}/api/webauthn/register/begin`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ student_id: user.id })
+    });
+
+    if (!beginRes.ok) {
+      const err = await beginRes.json();
+      alert('Could not start biometric setup: ' + (err.detail || 'Unknown error'));
+      return;
+    }
+
+    const options = await beginRes.json();
+
+    // Step 2: Trigger device fingerprint prompt
+    let credential;
+    try {
+      credential = await navigator.credentials.create({
+        publicKey: prepareRegistrationOptions(options)
+      });
+    } catch(e) {
+      alert('Fingerprint prompt was cancelled or failed: ' + e.message);
+      return;
+    }
+
+    // Step 3: Send to server
+    const completeRes = await fetch(`${API}/api/webauthn/register/complete`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({
+        student_id: user.id,
+        credential: serializeCredential(credential)
+      })
+    });
+
+    if (!completeRes.ok) {
+      const err = await completeRes.json();
+      alert('Server rejected biometric: ' + (err.detail || 'Unknown error'));
+      return;
+    }
+
+    // Success — hide the warning
+    alert('✅ Fingerprint registered successfully!');
+    document.getElementById('biometric-warning').style.display = 'none';
+
+  } catch(e) {
+    alert('Error: ' + e.message);
+  }
+}
+
+// Also need this helper for credential serialization (same as in register_student.js)
+function serializeCredential(credential) {
+  return {
+    id:    credential.id,
+    rawId: b64urlEncode(credential.rawId),
+    type:  credential.type,
+    response: {
+      clientDataJSON:    b64urlEncode(credential.response.clientDataJSON),
+      attestationObject: b64urlEncode(credential.response.attestationObject),
+    }
+  };
+}
