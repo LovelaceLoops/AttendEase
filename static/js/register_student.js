@@ -2,10 +2,8 @@
 
 const API = '';
 
-// --- Password validation
 const PW_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,}$/;
 
-// --- Tag input
 let enrolledSubjects = [];
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -48,7 +46,6 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
-// --- Show/hide error helpers
 function showErr(id)  { document.getElementById(id).classList.add('show'); }
 function hideErr(id)  { document.getElementById(id).classList.remove('show'); }
 function markErr(fieldId, errId) {
@@ -65,7 +62,11 @@ function showAlert(msg, type='error') {
 
 // ── WebAuthn helpers ──────────────────────────────────────────────────────────
 
-function b64urlDecode(str) {
+function b64urlToBuffer(str) {
+  // Safely convert a base64url string to ArrayBuffer
+  if (!str || typeof str !== 'string') {
+    throw new Error('Expected a base64url string but got: ' + typeof str);
+  }
   str = str.replace(/-/g, '+').replace(/_/g, '/');
   while (str.length % 4) str += '=';
   const binary = atob(str);
@@ -74,48 +75,70 @@ function b64urlDecode(str) {
   return bytes.buffer;
 }
 
-function b64urlEncode(buffer) {
+function bufferToB64url(buffer) {
   const bytes = new Uint8Array(buffer);
   let str = '';
   bytes.forEach(b => str += String.fromCharCode(b));
   return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
 }
 
-// Convert the server options so the browser's WebAuthn API can understand them
+/**
+ * py_webauthn's options_to_json() returns:
+ *   challenge  → base64url string
+ *   user.id    → base64url string  (NOT a raw bytes field)
+ *   excludeCredentials[].id → base64url string
+ *
+ * The browser's navigator.credentials.create() expects:
+ *   challenge  → ArrayBuffer
+ *   user.id    → ArrayBuffer
+ *   excludeCredentials[].id → ArrayBuffer
+ *
+ * So we decode each base64url string into an ArrayBuffer.
+ */
 function prepareRegistrationOptions(options) {
-  options.challenge = b64urlDecode(options.challenge);
-  options.user.id   = b64urlDecode(options.user.id);
-  if (options.excludeCredentials) {
+  // Decode challenge
+  if (typeof options.challenge === 'string') {
+    options.challenge = b64urlToBuffer(options.challenge);
+  }
+
+  // Decode user.id — py_webauthn sends this as base64url string
+  if (options.user && typeof options.user.id === 'string') {
+    options.user.id = b64urlToBuffer(options.user.id);
+  }
+
+  // Decode excludeCredentials ids
+  if (Array.isArray(options.excludeCredentials)) {
     options.excludeCredentials = options.excludeCredentials.map(c => ({
-      ...c, id: b64urlDecode(c.id)
+      ...c,
+      id: typeof c.id === 'string' ? b64urlToBuffer(c.id) : c.id
     }));
   }
+
   return options;
 }
 
-// Convert the browser credential response back to JSON-safe format for the server
+// Serialize the browser's credential object back to JSON for the server
 function serializeCredential(credential) {
   return {
     id:    credential.id,
-    rawId: b64urlEncode(credential.rawId),
+    rawId: bufferToB64url(credential.rawId),
     type:  credential.type,
     response: {
-      clientDataJSON:    b64urlEncode(credential.response.clientDataJSON),
-      attestationObject: b64urlEncode(credential.response.attestationObject),
+      clientDataJSON:    bufferToB64url(credential.response.clientDataJSON),
+      attestationObject: bufferToB64url(credential.response.attestationObject),
     }
   };
 }
 
-// ── Main WebAuthn registration flow ──────────────────────────────────────────
+// ── Biometric enrollment after account creation ───────────────────────────────
 
 async function registerBiometric(studentId) {
-  // Check browser support
   if (!window.PublicKeyCredential) {
-    showAlert('Your browser does not support biometric authentication. Please use Chrome on Android or Safari on iPhone.', 'error');
+    showAlert('Your browser does not support biometric auth. Use Chrome on Android or Safari on iPhone.', 'error');
     return false;
   }
 
-  showAlert('📲 Setting up biometric… Please follow your device prompt.', 'info');
+  showAlert('📲 Setting up biometric… Follow your device prompt.', 'info');
 
   try {
     // Step 1: Get options from server
@@ -130,24 +153,31 @@ async function registerBiometric(studentId) {
       throw new Error(err.detail || 'Could not start biometric registration.');
     }
 
-    const options = await beginRes.json();
+    const rawOptions = await beginRes.json();
+    console.log('WebAuthn register options from server:', JSON.stringify(rawOptions));
 
-    // Step 2: Ask device to create a credential (triggers fingerprint/face prompt)
+    // Step 2: Prepare options for browser API
+    let options;
+    try {
+      options = prepareRegistrationOptions(rawOptions);
+    } catch(e) {
+      throw new Error('Failed to parse server options: ' + e.message);
+    }
+
+    // Step 3: Trigger device fingerprint / face prompt
     let credential;
     try {
-      credential = await navigator.credentials.create({
-        publicKey: prepareRegistrationOptions(options)
-      });
+      credential = await navigator.credentials.create({ publicKey: options });
     } catch (e) {
       if (e.name === 'NotAllowedError') {
-        showAlert('Biometric prompt was cancelled or timed out. You can register your fingerprint later from the dashboard.', 'error');
+        showAlert('Biometric prompt was cancelled. You can register later from your dashboard.', 'error');
       } else {
         showAlert(`Biometric setup failed: ${e.message}`, 'error');
       }
       return false;
     }
 
-    // Step 3: Send the credential to server for verification and storage
+    // Step 4: Send to server for verification and storage
     const completeRes = await fetch(`${API}/api/webauthn/register/complete`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -167,12 +197,12 @@ async function registerBiometric(studentId) {
 
   } catch (e) {
     console.error('WebAuthn registration error:', e);
-    showAlert(`Biometric registration failed: ${e.message}`, 'error');
+    showAlert(`Biometric setup failed: ${e.message}`, 'error');
     return false;
   }
 }
 
-// ── Account creation + biometric enrollment ───────────────────────────────────
+// ── Account creation ──────────────────────────────────────────────────────────
 
 async function submitStudent() {
   let valid = true;
@@ -184,7 +214,6 @@ async function submitStudent() {
   const pw2      = document.getElementById('s-pw2').value;
   const subjects = JSON.parse(document.getElementById('s-subjects').value || '[]');
 
-  // Clear errors
   ['err-name','err-dept','err-roll','err-roll-dup','err-subjects','err-pw','err-pw2'].forEach(hideErr);
   ['s-name','s-dept','s-roll','s-pw','s-pw2'].forEach(id => document.getElementById(id).classList.remove('error'));
 
@@ -197,12 +226,11 @@ async function submitStudent() {
 
   if (!valid) return;
 
-  // Loading state
   document.getElementById('btn-text').style.display = 'none';
   document.getElementById('btn-spin').style.display = 'inline-block';
 
   try {
-    // ── Step 1: Create account ──────────────────────────────────────────────
+    // Step 1: Create account
     const res  = await fetch(`${API}/api/register/student`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -219,17 +247,15 @@ async function submitStudent() {
       return;
     }
 
-    // Account created — data.id is the student UUID
     const studentId = data.id;
-    showAlert('✅ Account created! Now setting up biometric authentication…', 'success');
+    showAlert('✅ Account created! Setting up biometric authentication…', 'success');
 
-    // ── Step 2: Enroll biometric ────────────────────────────────────────────
-    // Small delay so the success message is readable before the system prompt
-    await new Promise(r => setTimeout(r, 1200));
+    // Step 2: Enroll biometric
+    await new Promise(r => setTimeout(r, 1000));
     const biometricOk = await registerBiometric(studentId);
 
-    // Whether biometric succeeded or not, account is created — redirect to login
-    await new Promise(r => setTimeout(r, biometricOk ? 1500 : 3000));
+    // Redirect regardless of biometric result — account is already created
+    await new Promise(r => setTimeout(r, biometricOk ? 1500 : 3500));
     window.location.href = '/static/pages/index.html';
 
   } catch(e) {
