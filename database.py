@@ -50,7 +50,7 @@ class Student(Base):
     subjects    = Column(JSON, default=list)      # list of subject strings
     password    = Column(String, nullable=False)  # hashed
     qr_code     = Column(String, unique=True)     # unique QR identifier
-    created_at  = Column(DateTime, default=datetime.utcnow)
+    created_at  = Column(DateTime, default=datetime.now(timezone.utc))
 
     attendance_records = relationship("AttendanceRecord", back_populates="student", cascade="all,delete")
 
@@ -83,7 +83,7 @@ class AttendanceSession(Base):
     is_active       = Column(Boolean, default=True)
     prof_lat        = Column(Float, nullable=True)
     prof_lon        = Column(Float, nullable=True)
-    started_at      = Column(DateTime, default=datetime.utcnow)
+    started_at      = Column(DateTime, default=datetime.noe(timezone.utc))
     ended_at        = Column(DateTime, nullable=True)
 
     professor = relationship("Professor", back_populates="sessions")
@@ -99,7 +99,7 @@ class AttendanceRecord(Base):
     subject     = Column(String, nullable=False)
     status      = Column(String, nullable=False)   # present | absent | late
     device_id   = Column(String, nullable=True)
-    timestamp   = Column(DateTime, default=datetime.utcnow)
+    timestamp   = Column(DateTime, default=datetime.now(timezone.utc))
 
     student = relationship("Student", back_populates="attendance_records")
     session = relationship("AttendanceSession", back_populates="records")
@@ -113,7 +113,7 @@ class DeviceRecord(Base):
     device_id  = Column(String, nullable=False, index=True)
     session_id = Column(String, nullable=False, index=True)
     student_id = Column(String, nullable=False)
-    timestamp  = Column(DateTime, default=datetime.utcnow)
+    timestamp  = Column(DateTime, default=datetime.now(timezone.utc))
 
 
 # ----------- DB DEPENDENCY -----------
