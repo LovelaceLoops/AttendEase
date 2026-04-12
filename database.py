@@ -9,8 +9,15 @@ from sqlalchemy import (
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 from datetime import datetime
 import os
+from sqlalchemy import create_engine
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./attendease.db")
+DATABASE_URL = os.environ.get("DATABASE_URL")
+
+# Render gives postgres:// but SQLAlchemy needs postgresql://
+if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+engine = create_engine(DATABASE_URL)
 
 engine = create_engine(
     DATABASE_URL,

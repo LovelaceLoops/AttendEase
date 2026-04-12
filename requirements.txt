@@ -21,6 +21,7 @@ MarkupSafe==3.0.3
 packaging==26.0
 passlib==1.7.4
 psycopg2-binary==2.9.9
+SQLAlchemy==2.0.36
 pydantic==2.12.5
 pydantic_core==2.41.5
 PyMySQL==1.1.2
