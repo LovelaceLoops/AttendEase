@@ -54,99 +54,11 @@ function markErr(fieldId, errId) {
 }
 function showAlert(msg, type='error') {
   const el = document.getElementById('alert-box');
-  if (!el) return;
   el.className = `alert alert-${type} show`;
+  el.style.display = 'block';
+  el.style.opacity = '1';
   el.innerHTML = (type==='error' ? '❌ ' : '✅ ') + msg;
-  if (type !== 'error') setTimeout(() => el.className = 'alert', 6000);
-}
-
-// ── Step navigation ───────────────────────────────────────────────────────────
-function showBiometricStep() {
-  const formStep = document.getElementById('step-form');
-  const bioStep  = document.getElementById('step-biometric');
-  if (!bioStep) {
-    console.error('step-biometric element not found in HTML');
-    // Fallback — redirect to login since account was created
-    alert('Account created! Please login and register your fingerprint from the dashboard.');
-    window.location.href = '/static/pages/index.html';
-    return;
-  }
-  if (formStep) formStep.style.display = 'none';
-  bioStep.style.display = 'block';
-  // Scroll to top so user sees the fingerprint step
-  window.scrollTo(0, 0);
-}
-
-function setFpUI(icon, title, msg, statusText, statusColor, showBtn) {
-  const iconEl  = document.getElementById('fp-reg-icon');
-  const titleEl = document.getElementById('fp-reg-title');
-  const msgEl   = document.getElementById('fp-reg-msg');
-  const badge   = document.getElementById('fp-status-badge');
-  const text    = document.getElementById('fp-status-text');
-  const btn     = document.getElementById('fp-reg-btn');
-
-  if (iconEl)  iconEl.textContent  = icon;
-  if (titleEl) titleEl.textContent = title;
-  if (msgEl)   msgEl.textContent   = msg;
-
-  if (badge && text) {
-    if (statusText) {
-      badge.style.display   = 'block';
-      text.textContent      = statusText;
-      text.style.background = statusColor || 'rgba(79,195,247,0.12)';
-      text.style.color      = statusColor ? '#fff' : 'var(--primary)';
-    } else {
-      badge.style.display = 'none';
-    }
-  }
-  if (btn) btn.style.display = showBtn ? 'block' : 'none';
-}
-
-// ── WebAuthn helpers ──────────────────────────────────────────────────────────
-function b64urlToBuffer(str) {
-  if (!str || typeof str !== 'string') {
-    throw new Error('Expected base64url string, got: ' + typeof str);
-  }
-  str = str.replace(/-/g, '+').replace(/_/g, '/');
-  while (str.length % 4) str += '=';
-  const binary = atob(str);
-  const bytes  = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return bytes.buffer;
-}
-
-function bufferToB64url(buffer) {
-  const bytes = new Uint8Array(buffer);
-  let str = '';
-  bytes.forEach(b => str += String.fromCharCode(b));
-  return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-}
-
-function prepareRegistrationOptions(options) {
-  if (typeof options.challenge === 'string') {
-    options.challenge = b64urlToBuffer(options.challenge);
-  }
-  if (options.user && typeof options.user.id === 'string') {
-    options.user.id = b64urlToBuffer(options.user.id);
-  }
-  if (Array.isArray(options.excludeCredentials)) {
-    options.excludeCredentials = options.excludeCredentials.map(c => ({
-      ...c, id: typeof c.id === 'string' ? b64urlToBuffer(c.id) : c.id
-    }));
-  }
-  return options;
-}
-
-function serializeCredential(credential) {
-  return {
-    id:    credential.id,
-    rawId: bufferToB64url(credential.rawId),
-    type:  credential.type,
-    response: {
-      clientDataJSON:    bufferToB64url(credential.response.clientDataJSON),
-      attestationObject: bufferToB64url(credential.response.attestationObject),
-    }
-  };
+  if (type !== 'error') setTimeout(() => { el.className = 'alert'; }, 5000);
 }
 
 // ── Account creation ──────────────────────────────────────────────────────────
@@ -214,4 +126,10 @@ async function submitStudent() {
     return;
   }
 
- }
+  // Success — show message and redirect
+  showAlert('✅ Account created! Redirecting to login…', 'success');
+  setTimeout(() => {
+    window.location.href = '/static/pages/index.html';
+  }, 2000);
+
+}
