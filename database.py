@@ -1,5 +1,5 @@
 """
-database.py — PostgreSQL setup with SQLAlchemy 1.4
+database.py - PostgreSQL setup with SQLAlchemy 1.4 and pg8000
 """
 
 from sqlalchemy import (
@@ -12,7 +12,9 @@ import os
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
 
-if DATABASE_URL.startswith("postgres://"):
+if DATABASE_URL.startswith("postgresql://"):
+    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+pg8000://", 1)
+elif DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+pg8000://", 1)
 
 if not DATABASE_URL:
