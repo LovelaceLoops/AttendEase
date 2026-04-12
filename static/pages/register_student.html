@@ -6,89 +6,158 @@
   <title>AttendEase — Student Registration</title>
   <link rel="stylesheet" href="/static/css/theme.css" />
   <link rel="manifest" href="/static/manifest.json">
-<meta name="theme-color" content="#4fc3f7">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="AttendEase">
-
+  <meta name="theme-color" content="#4fc3f7">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="AttendEase">
 </head>
 <body>
 <div class="page-wrapper">
   <div class="card" style="max-width:540px;">
 
-    <div class="brand">
-      <div class="brand-icon" style="background: linear-gradient(135deg,#4fc3f7,#81d4fa);">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
-          <path d="M6 12v5c3 3 9 3 12 0v-5"/>
-        </svg>
-      </div>
-      <h1>Student</h1>
-      <p>Create your student account</p>
-    </div>
+    <!-- ── STEP 1: Registration Form ───────────────────────────────────── -->
+    <div id="step-form">
 
-    <div id="alert-box" class="alert"></div>
-
-    <form id="student-form" onsubmit="return false;">
-
-      <div class="form-group">
-        <label>Full Name *</label>
-        <input type="text" id="s-name" placeholder="e.g. Priya Sharma" autocomplete="name" />
-        <span class="error-msg" id="err-name">Name is required.</span>
-      </div>
-
-      <div class="form-group">
-        <label>Department *</label>
-        <select id="s-dept">
-          <option value="">— Select Department —</option>
-          <option>Computer Science</option>
-          <option>Artificial Inteligence and Machine Learning</option>
-          <option>Data Science</option>
-          <option>Mechanical</option>
-          <option>Civil</option>
-          <option>Automobile</option>
-        </select>
-        <span class="error-msg" id="err-dept">Please select your department.</span>
-      </div>
-
-      <div class="form-group">
-        <label>Roll Number *</label>
-        <input type="text" id="s-roll" placeholder="e.g. CS2024001" autocomplete="off" />
-        <span class="error-msg" id="err-roll">Roll number is required.</span>
-        <span class="error-msg" id="err-roll-dup">This roll number is already registered.</span>
-      </div>
-
-      <div class="form-group">
-        <label>Enrolled Subjects * <span style="font-weight:400;text-transform:none;color:var(--text-light);">(type & press Enter or comma)</span></label>
-        <div class="tag-input-wrapper" id="subjects-wrapper" onclick="document.getElementById('subject-input').focus()">
-          <input class="tag-input" id="subject-input" type="text"
-                 placeholder="e.g. Data Structures…" />
+      <div class="brand">
+        <div class="brand-icon" style="background: linear-gradient(135deg,#4fc3f7,#81d4fa);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
+            <path d="M6 12v5c3 3 9 3 12 0v-5"/>
+          </svg>
         </div>
-        <span class="error-msg" id="err-subjects">Add at least one subject.</span>
-        <input type="hidden" id="s-subjects" />
+        <h1>Student</h1>
+        <p>Create your student account</p>
       </div>
 
-      <div class="form-group">
-        <label>Password *</label>
-        <input type="password" id="s-pw" placeholder="Create a strong password" autocomplete="new-password" />
-        <div class="form-hint warning">⚠ Minimum 8 characters with Capital, Small and Special characters must.</div>
-        <span class="error-msg" id="err-pw">Password does not meet requirements.</span>
+      <div id="alert-box" class="alert"></div>
+
+      <form id="student-form" onsubmit="return false;">
+
+        <div class="form-group">
+          <label>Full Name *</label>
+          <input type="text" id="s-name" placeholder="e.g. Priya Sharma" autocomplete="name" />
+          <span class="error-msg" id="err-name">Name is required.</span>
+        </div>
+
+        <div class="form-group">
+          <label>Department *</label>
+          <select id="s-dept">
+            <option value="">— Select Department —</option>
+            <option>Computer Science</option>
+            <option>Artificial Inteligence and Machine Learning</option>
+            <option>Data Science</option>
+            <option>Mechanical</option>
+            <option>Civil</option>
+            <option>Automobile</option>
+          </select>
+          <span class="error-msg" id="err-dept">Please select your department.</span>
+        </div>
+
+        <div class="form-group">
+          <label>Roll Number *</label>
+          <input type="text" id="s-roll" placeholder="e.g. CS2024001" autocomplete="off" />
+          <span class="error-msg" id="err-roll">Roll number is required.</span>
+          <span class="error-msg" id="err-roll-dup">This roll number is already registered.</span>
+        </div>
+
+        <div class="form-group">
+          <label>Enrolled Subjects * <span style="font-weight:400;text-transform:none;color:var(--text-light);">(type & press Enter or comma)</span></label>
+          <div class="tag-input-wrapper" id="subjects-wrapper" onclick="document.getElementById('subject-input').focus()">
+            <input class="tag-input" id="subject-input" type="text" placeholder="e.g. Data Structures…" />
+          </div>
+          <span class="error-msg" id="err-subjects">Add at least one subject.</span>
+          <input type="hidden" id="s-subjects" />
+        </div>
+
+        <div class="form-group">
+          <label>Password *</label>
+          <input type="password" id="s-pw" placeholder="Create a strong password" autocomplete="new-password" />
+          <div class="form-hint warning">⚠ Minimum 8 characters with Capital, Small and Special characters must.</div>
+          <span class="error-msg" id="err-pw">Password does not meet requirements.</span>
+        </div>
+
+        <div class="form-group">
+          <label>Confirm Password *</label>
+          <input type="password" id="s-pw2" placeholder="Repeat your password" autocomplete="new-password" />
+          <span class="error-msg" id="err-pw2">Passwords do not match.</span>
+        </div>
+
+        <button class="btn btn-primary" onclick="submitStudent()">
+          <span id="btn-text">Create Student Account</span>
+          <div class="spinner" id="btn-spin" style="display:none;"></div>
+        </button>
+        <button class="btn btn-outline" onclick="history.back()">← Back</button>
+
+      </form>
+
+      <p class="link-text">Already have an account? <a href="/static/pages/index.html">Sign In</a></p>
+
+    </div><!-- end step-form -->
+
+
+    <!-- ── STEP 2: Fingerprint Enrollment ──────────────────────────────── -->
+    <!--
+      This step is hidden at first. It becomes visible after the account
+      is successfully created. The student must scan their fingerprint
+      before they can proceed to login.
+    -->
+    <div id="step-biometric" style="display:none; text-align:center; padding: 12px 0;">
+
+      <div class="brand">
+        <div class="brand-icon" style="background: linear-gradient(135deg,#4fc3f7,#f48fb1); font-size: 2rem; display:flex; align-items:center; justify-content:center;">
+          👆
+        </div>
+        <h1>Step 2 of 2</h1>
+        <p>Register your fingerprint</p>
       </div>
 
-      <div class="form-group">
-        <label>Confirm Password *</label>
-        <input type="password" id="s-pw2" placeholder="Repeat your password" autocomplete="new-password" />
-        <span class="error-msg" id="err-pw2">Passwords do not match.</span>
+      <!-- Progress indicator -->
+      <div style="display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:28px;">
+        <div style="width:32px;height:6px;border-radius:3px;background:var(--primary);"></div>
+        <div style="width:32px;height:6px;border-radius:3px;background:var(--primary);"></div>
       </div>
 
-      <button class="btn btn-primary" onclick="submitStudent()">
-        <span id="btn-text">Create Student Account</span>
-        <div class="spinner" id="btn-spin" style="display:none;"></div>
+      <!-- Fingerprint animation area -->
+      <div id="fp-anim-wrap" style="
+        width:120px; height:120px; border-radius:50%;
+        background: linear-gradient(135deg, rgba(79,195,247,0.12), rgba(244,143,177,0.10));
+        border: 3px solid var(--primary);
+        display:flex; align-items:center; justify-content:center;
+        margin: 0 auto 24px; font-size:3.5rem;
+        transition: all 0.3s ease;
+      ">
+        <span id="fp-reg-icon">👆</span>
+      </div>
+
+      <h2 id="fp-reg-title" style="font-size:1.3rem; color:var(--text-dark); margin-bottom:8px;">
+        Register Your Fingerprint
+      </h2>
+      <p id="fp-reg-msg" style="color:var(--text-mid); font-size:0.9rem; margin-bottom:28px; padding:0 8px;">
+        Your account has been created! Now register your fingerprint so you can securely mark attendance.
+        Your fingerprint data <strong>never leaves your device</strong>.
+      </p>
+
+      <!-- Status badge — hidden until scan starts -->
+      <div id="fp-status-badge" style="display:none; margin-bottom:20px;">
+        <span id="fp-status-text" style="
+          display:inline-block; padding:8px 20px; border-radius:20px;
+          font-size:0.82rem; font-weight:600;
+          background:rgba(79,195,247,0.12); color:var(--primary);
+        ">Waiting…</span>
+      </div>
+
+      <button id="fp-reg-btn" class="btn btn-primary" onclick="startFingerprintEnrollment()" style="max-width:280px; margin:0 auto 12px;">
+        👆 Scan Fingerprint
       </button>
-      <button class="btn btn-outline" onclick="history.back()">← Back</button>
 
-    </form>
+      <button id="fp-skip-btn" class="btn btn-outline" onclick="skipBiometric()" style="max-width:280px; margin:0 auto; font-size:0.82rem; color:var(--text-light);">
+        Skip for now (you can register later)
+      </button>
 
-    <p class="link-text">Already have an account? <a href="/static/pages/index.html">Sign In</a></p>
+      <p style="font-size:0.75rem; color:var(--text-light); margin-top:20px; padding:0 12px;">
+        🔒 Only the cryptographic key is stored — your raw fingerprint is secured in your device's hardware chip and cannot be extracted.
+      </p>
+
+    </div><!-- end step-biometric -->
 
   </div>
 </div>
