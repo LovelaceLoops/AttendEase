@@ -1,4 +1,3 @@
-"""routers/sessions.py — Attendance Session Management"""
 
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session as DBSession

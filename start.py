@@ -45,13 +45,6 @@ except Exception as e:
     print(f"❌  Core router failed: {e}")
     sys.exit(1)
 
-try:
-    from routers import webauthn_router
-    print("✅  WebAuthn router loaded.")
-except Exception as e:
-    print(f"⚠️  WebAuthn router unavailable: {e}")
-    print("    Biometric features disabled. Check webauthn==2.1.0 in requirements.txt")
-
 # ── Start server ──────────────────────────────────────────────────────────────
 print("🚀  Starting AttendEase...")
 

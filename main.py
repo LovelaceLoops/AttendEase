@@ -11,16 +11,6 @@ import uvicorn
 
 from routers import auth, attendance, sessions, students, stats, geofence
 
-# WebAuthn is optional — if package not installed, biometric routes
-# are unavailable but the rest of the app works normally
-try:
-    from routers import webauthn_router
-    WEBAUTHN_AVAILABLE = True
-    print("✅ WebAuthn router loaded.")
-except Exception as e:
-    WEBAUTHN_AVAILABLE = False
-    print(f"⚠️  WebAuthn unavailable: {e}")
-
 app = FastAPI(title="AttendEase API", version="1.0.0")
 
 # CORS
@@ -39,9 +29,6 @@ app.include_router(sessions.router,   prefix="/api", tags=["Sessions"])
 app.include_router(students.router,   prefix="/api", tags=["Students"])
 app.include_router(stats.router,      prefix="/api", tags=["Stats"])
 app.include_router(geofence.router,   prefix="/api", tags=["Geofence"])
-
-if WEBAUTHN_AVAILABLE:
-    app.include_router(webauthn_router.router, prefix="/api", tags=["WebAuthn"])
 
 # ---- STATIC FILES ----
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -73,8 +60,7 @@ async def health():
     return {
         "status": "ok",
         "app": "AttendEase",
-        "webauthn": WEBAUTHN_AVAILABLE
-    }
+            }
 
 @app.get("/static/sw.js")
 async def service_worker():

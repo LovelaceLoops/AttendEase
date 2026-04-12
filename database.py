@@ -107,27 +107,6 @@ class DeviceRecord(Base):
     student_id = Column(String, nullable=False)
     timestamp  = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
-
-class WebAuthnCredential(Base):
-    """
-    Stores the WebAuthn public key credential for each student device.
-    One student can have multiple credentials (e.g. phone + tablet).
-    The private key and raw fingerprint data NEVER leave the device —
-    only the public key and a sign count are stored here.
-    """
-    __tablename__ = "webauthn_credentials"
-
-    id            = Column(String, primary_key=True, index=True)   # UUID
-    student_id    = Column(String, ForeignKey("students.id"), nullable=False, index=True)
-    credential_id = Column(String, unique=True, nullable=False, index=True)  # base64url
-    public_key    = Column(Text, nullable=False)   # base64url encoded COSE public key
-    sign_count    = Column(BigInteger, default=0)  # replay attack counter
-    device_type   = Column(String, nullable=True)  # single_device | multi_device
-    created_at    = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-
-    student = relationship("Student", back_populates="webauthn_credentials")
-
-
 # ----------- DB DEPENDENCY -----------
 
 def get_db():

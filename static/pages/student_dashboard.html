@@ -30,21 +30,7 @@
     <p id="roll-dept">Roll No: — | Department: —</p>
   </div>
 
-  <!--
-    SINGLE biometric warning div with button.
-    JS finds this by id="biometric-warning" and shows it.
-    Do NOT add another div with the same id anywhere.
-  -->
-  <div id="biometric-warning" style="display:none;background:rgba(239,83,80,0.08);border:1.5px solid var(--error);border-radius:12px;padding:14px 18px;margin-bottom:16px;font-size:0.85rem;color:var(--error);">
-    ⚠️ <strong>Biometric not set up on this device.</strong>
-    You will not be able to mark attendance until your fingerprint is registered.
-    <br/><br/>
-    <button class="btn btn-primary" onclick="enrollBiometricNow()" style="font-size:0.85rem;padding:10px 20px;margin:0;">
-      👆 Register Fingerprint Now
-    </button>
-  </div>
-
-  <!-- Geofence Status -->
+    <!-- Geofence Status -->
   <div class="geo-indicator geo-out" id="geo-status">
     <div class="geo-dot"></div>
     <span id="geo-text">Checking your location...</span>
@@ -125,39 +111,6 @@
   </div>
 
 </div><!-- end dashboard-wrapper -->
-
-<!-- ── FINGERPRINT MODAL ─────────────────────────────────────────────────── -->
-<div class="modal-overlay" id="fp-modal">
-  <div class="modal">
-    <div class="fingerprint-anim">
-      <span class="fp-icon" id="fp-icon">👆</span>
-    </div>
-    <h3 id="fp-title">Verify Fingerprint</h3>
-    <p id="fp-msg">Tap the button below. Your device will ask you to scan your fingerprint or face.</p>
-    <button class="btn btn-primary" id="fp-scan-btn" onclick="simulateFingerprint()" style="max-width:240px;margin:0 auto 10px;">
-      Scan Fingerprint
-    </button>
-    <button class="btn btn-outline" onclick="closeModal('fp-modal')" style="max-width:240px;margin:0 auto;">
-      Cancel
-    </button>
-  </div>
-</div>
-
-<!-- ── QR MODAL ──────────────────────────────────────────────────────────── -->
-<div class="modal-overlay" id="qr-modal">
-  <div class="modal">
-    <div class="modal-icon">📷</div>
-    <h3>Scan Your QR Code</h3>
-    <p>Point your camera at the QR code on your student ID card. Ensure you are within range of the professor's device.</p>
-    <div class="qr-box" id="qr-scan-area" onclick="simulateQRScan()">
-      <span>📷</span>
-    </div>
-    <p style="font-size:0.75rem;color:var(--text-light);">Tap the camera area to simulate scan (demo mode)</p>
-    <button class="btn btn-outline" onclick="closeModal('qr-modal')" style="max-width:240px;margin:8px auto 0;">
-      Cancel
-    </button>
-  </div>
-</div>
 
 <!-- ── RESULT MODAL ───────────────────────────────────────────────────────── -->
 <div class="modal-overlay" id="result-modal">

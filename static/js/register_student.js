@@ -149,87 +149,6 @@ function serializeCredential(credential) {
   };
 }
 
-// ── Fingerprint enrollment ────────────────────────────────────────────────────
-async function startFingerprintEnrollment() {
-  if (!window.PublicKeyCredential) {
-    setFpUI('❌', 'Not Supported',
-      'Your browser does not support biometric auth. Use Chrome on Android or Safari on iPhone.',
-      'Unsupported', 'rgba(239,83,80,0.8)', false);
-    document.getElementById('fp-skip-btn').style.display = 'block';
-    return;
-  }
-
-  setFpUI('⏳', 'Scanning…',
-    'Follow the prompt on your device to scan your fingerprint or face.',
-    'Scanning…', null, false);
-  document.getElementById('fp-skip-btn').style.display = 'none';
-
-  try {
-    const beginRes = await fetch(`${API}/api/webauthn/register/begin`, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ student_id: createdStudentId })
-    });
-
-    if (!beginRes.ok) {
-      const err = await beginRes.json();
-      throw new Error(err.detail || 'Server error starting biometric setup.');
-    }
-
-    const rawOptions = await beginRes.json();
-    console.log('WebAuthn options from server:', JSON.stringify(rawOptions));
-    const options = prepareRegistrationOptions(rawOptions);
-
-    let credential;
-    try {
-      credential = await navigator.credentials.create({ publicKey: options });
-    } catch(e) {
-      const cancelled = e.name === 'NotAllowedError';
-      setFpUI('❌',
-        cancelled ? 'Cancelled' : 'Failed',
-        cancelled
-          ? 'The fingerprint prompt was dismissed. Tap the button to try again.'
-          : `Error: ${e.message}`,
-        cancelled ? 'Cancelled' : 'Error',
-        'rgba(239,83,80,0.8)', true);
-      document.getElementById('fp-skip-btn').style.display = 'block';
-      return;
-    }
-
-    const completeRes = await fetch(`${API}/api/webauthn/register/complete`, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({
-        student_id: createdStudentId,
-        credential: serializeCredential(credential)
-      })
-    });
-
-    if (!completeRes.ok) {
-      const err = await completeRes.json();
-      throw new Error(err.detail || 'Server could not verify fingerprint.');
-    }
-
-    setFpUI('✅', 'Fingerprint Registered!',
-      'Your fingerprint has been linked to your account. Redirecting to login…',
-      '✅ Success', 'rgba(76,175,80,0.8)', false);
-    document.getElementById('fp-skip-btn').style.display = 'none';
-
-    setTimeout(() => { window.location.href = '/static/pages/index.html'; }, 2000);
-
-  } catch(e) {
-    console.error('WebAuthn error:', e);
-    setFpUI('❌', 'Registration Failed',
-      `${e.message}. Please try again or skip and register later from your dashboard.`,
-      'Failed', 'rgba(239,83,80,0.8)', true);
-    document.getElementById('fp-skip-btn').style.display = 'block';
-  }
-}
-
-function skipBiometric() {
-  window.location.href = '/static/pages/index.html';
-}
-
 // ── Account creation ──────────────────────────────────────────────────────────
 async function submitStudent() {
   let valid = true;
@@ -295,8 +214,4 @@ async function submitStudent() {
     return;
   }
 
-  // ── Success — move to biometric step ────────────────────────────────────
-  createdStudentId = responseData.id;
-  console.log('Account created, student ID:', createdStudentId);
-  showBiometricStep();
-}
+ }

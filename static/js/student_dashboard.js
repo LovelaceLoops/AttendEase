@@ -340,29 +340,6 @@ function startAttendance() {
     return;
   }
 
-  fingerprintVerified = false;
-  document.getElementById('fp-icon').textContent  = '👆';
-  document.getElementById('fp-title').textContent = 'Verify Fingerprint';
-  document.getElementById('fp-msg').textContent   = 'Tap the button below. Your device will ask you to scan your fingerprint or face.';
-  document.getElementById('fp-scan-btn').style.display = 'inline-block';
-  openModal('fp-modal');
-}
-
-async function simulateFingerprint() {
-  const btn = document.getElementById('fp-scan-btn');
-  if (btn) btn.style.display = 'none';
-
-  const verified = await verifyBiometric();
-
-  if (verified) {
-    fingerprintVerified = true;
-    setTimeout(() => {
-      closeModal('fp-modal');
-      openModal('qr-modal');
-    }, 1200);
-  } else {
-    if (btn) btn.style.display = 'inline-block';
-  }
 }
 
 async function simulateQRScan() {
