@@ -7,7 +7,7 @@ import math
 
 router = APIRouter()
 
-RADIUS_METRES = 5.0
+RADIUS_METRES = 100.0
 
 
 def haversine(lat1, lon1, lat2, lon2) -> float:
