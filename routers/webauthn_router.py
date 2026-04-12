@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session as DBSession
 from pydantic import BaseModel
 from typing import Optional
 import uuid, json, base64
+from routers import webauthn_router
 
 import webauthn
 from webauthn.helpers.structs import (

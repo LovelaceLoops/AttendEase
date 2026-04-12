@@ -5,9 +5,9 @@ const API = '';
 const PW_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,}$/;
 
 let enrolledSubjects = [];
-let createdStudentId = null;   // set after account creation, used by biometric step
+let createdStudentId = null;
 
-// ── Tag input setup ───────────────────────────────────────────────────────────
+// ── Tag input ─────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   const wrapper = document.getElementById('subjects-wrapper');
   const input   = document.getElementById('subject-input');
@@ -34,15 +34,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   input.addEventListener('keydown', e => {
     if (e.key === 'Enter' || e.key === ',') {
-      e.preventDefault();
-      addSubject(input.value);
-      input.value = '';
+      e.preventDefault(); addSubject(input.value); input.value = '';
     }
     if (e.key === 'Backspace' && input.value === '' && enrolledSubjects.length) {
       enrolledSubjects.pop(); renderTags();
     }
   });
-
   input.addEventListener('blur', () => {
     if (input.value.trim()) { addSubject(input.value); input.value = ''; }
   });
@@ -55,9 +52,9 @@ function markErr(fieldId, errId) {
   document.getElementById(fieldId).classList.add('error');
   showErr(errId);
 }
-
 function showAlert(msg, type='error') {
   const el = document.getElementById('alert-box');
+  if (!el) return;
   el.className = `alert alert-${type} show`;
   el.innerHTML = (type==='error' ? '❌ ' : '✅ ') + msg;
   if (type !== 'error') setTimeout(() => el.className = 'alert', 6000);
@@ -65,27 +62,43 @@ function showAlert(msg, type='error') {
 
 // ── Step navigation ───────────────────────────────────────────────────────────
 function showBiometricStep() {
-  document.getElementById('step-form').style.display      = 'none';
-  document.getElementById('step-biometric').style.display = 'block';
+  const formStep = document.getElementById('step-form');
+  const bioStep  = document.getElementById('step-biometric');
+  if (!bioStep) {
+    console.error('step-biometric element not found in HTML');
+    // Fallback — redirect to login since account was created
+    alert('Account created! Please login and register your fingerprint from the dashboard.');
+    window.location.href = '/static/pages/index.html';
+    return;
+  }
+  if (formStep) formStep.style.display = 'none';
+  bioStep.style.display = 'block';
+  // Scroll to top so user sees the fingerprint step
+  window.scrollTo(0, 0);
 }
 
 function setFpUI(icon, title, msg, statusText, statusColor, showBtn) {
-  document.getElementById('fp-reg-icon').textContent  = icon;
-  document.getElementById('fp-reg-title').textContent = title;
-  document.getElementById('fp-reg-msg').textContent   = msg;
+  const iconEl  = document.getElementById('fp-reg-icon');
+  const titleEl = document.getElementById('fp-reg-title');
+  const msgEl   = document.getElementById('fp-reg-msg');
+  const badge   = document.getElementById('fp-status-badge');
+  const text    = document.getElementById('fp-status-text');
+  const btn     = document.getElementById('fp-reg-btn');
 
-  const badge = document.getElementById('fp-status-badge');
-  const text  = document.getElementById('fp-status-text');
-  if (statusText) {
-    badge.style.display     = 'block';
-    text.textContent        = statusText;
-    text.style.background   = statusColor || 'rgba(79,195,247,0.12)';
-    text.style.color        = statusColor ? '#fff' : 'var(--primary)';
-  } else {
-    badge.style.display = 'none';
+  if (iconEl)  iconEl.textContent  = icon;
+  if (titleEl) titleEl.textContent = title;
+  if (msgEl)   msgEl.textContent   = msg;
+
+  if (badge && text) {
+    if (statusText) {
+      badge.style.display   = 'block';
+      text.textContent      = statusText;
+      text.style.background = statusColor || 'rgba(79,195,247,0.12)';
+      text.style.color      = statusColor ? '#fff' : 'var(--primary)';
+    } else {
+      badge.style.display = 'none';
+    }
   }
-
-  const btn = document.getElementById('fp-reg-btn');
   if (btn) btn.style.display = showBtn ? 'block' : 'none';
 }
 
@@ -136,24 +149,22 @@ function serializeCredential(credential) {
   };
 }
 
-// ── Fingerprint enrollment (called from Step 2 button) ────────────────────────
+// ── Fingerprint enrollment ────────────────────────────────────────────────────
 async function startFingerprintEnrollment() {
   if (!window.PublicKeyCredential) {
     setFpUI('❌', 'Not Supported',
-      'Your browser does not support biometric authentication. Please use Chrome on Android or Safari on iPhone.',
+      'Your browser does not support biometric auth. Use Chrome on Android or Safari on iPhone.',
       'Unsupported', 'rgba(239,83,80,0.8)', false);
     document.getElementById('fp-skip-btn').style.display = 'block';
     return;
   }
 
-  // Scanning state
   setFpUI('⏳', 'Scanning…',
     'Follow the prompt on your device to scan your fingerprint or face.',
     'Scanning…', null, false);
   document.getElementById('fp-skip-btn').style.display = 'none';
 
   try {
-    // Step 1: Get options from server
     const beginRes = await fetch(`${API}/api/webauthn/register/begin`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -166,28 +177,25 @@ async function startFingerprintEnrollment() {
     }
 
     const rawOptions = await beginRes.json();
-    console.log('WebAuthn register options:', JSON.stringify(rawOptions));
+    console.log('WebAuthn options from server:', JSON.stringify(rawOptions));
     const options = prepareRegistrationOptions(rawOptions);
 
-    // Step 2: Trigger device biometric prompt
     let credential;
     try {
       credential = await navigator.credentials.create({ publicKey: options });
     } catch(e) {
-      if (e.name === 'NotAllowedError') {
-        setFpUI('❌', 'Cancelled',
-          'The fingerprint prompt was dismissed. Tap the button below to try again.',
-          'Cancelled', 'rgba(239,83,80,0.8)', true);
-      } else {
-        setFpUI('❌', 'Failed',
-          `Something went wrong: ${e.message}. Tap the button to try again.`,
-          'Error', 'rgba(239,83,80,0.8)', true);
-      }
+      const cancelled = e.name === 'NotAllowedError';
+      setFpUI('❌',
+        cancelled ? 'Cancelled' : 'Failed',
+        cancelled
+          ? 'The fingerprint prompt was dismissed. Tap the button to try again.'
+          : `Error: ${e.message}`,
+        cancelled ? 'Cancelled' : 'Error',
+        'rgba(239,83,80,0.8)', true);
       document.getElementById('fp-skip-btn').style.display = 'block';
       return;
     }
 
-    // Step 3: Send to server
     const completeRes = await fetch(`${API}/api/webauthn/register/complete`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -202,15 +210,12 @@ async function startFingerprintEnrollment() {
       throw new Error(err.detail || 'Server could not verify fingerprint.');
     }
 
-    // ── SUCCESS ──
     setFpUI('✅', 'Fingerprint Registered!',
-      'Your fingerprint has been successfully linked to your account. Redirecting to login…',
+      'Your fingerprint has been linked to your account. Redirecting to login…',
       '✅ Success', 'rgba(76,175,80,0.8)', false);
     document.getElementById('fp-skip-btn').style.display = 'none';
 
-    setTimeout(() => {
-      window.location.href = '/static/pages/index.html';
-    }, 2000);
+    setTimeout(() => { window.location.href = '/static/pages/index.html'; }, 2000);
 
   } catch(e) {
     console.error('WebAuthn error:', e);
@@ -221,12 +226,11 @@ async function startFingerprintEnrollment() {
   }
 }
 
-// ── Skip biometric ────────────────────────────────────────────────────────────
 function skipBiometric() {
   window.location.href = '/static/pages/index.html';
 }
 
-// ── Account creation (Step 1 submit) ─────────────────────────────────────────
+// ── Account creation ──────────────────────────────────────────────────────────
 async function submitStudent() {
   let valid = true;
 
@@ -238,7 +242,8 @@ async function submitStudent() {
   const subjects = JSON.parse(document.getElementById('s-subjects').value || '[]');
 
   ['err-name','err-dept','err-roll','err-roll-dup','err-subjects','err-pw','err-pw2'].forEach(hideErr);
-  ['s-name','s-dept','s-roll','s-pw','s-pw2'].forEach(id => document.getElementById(id).classList.remove('error'));
+  ['s-name','s-dept','s-roll','s-pw','s-pw2'].forEach(id =>
+    document.getElementById(id).classList.remove('error'));
 
   if (!name)             { markErr('s-name','err-name');   valid = false; }
   if (!dept)             { markErr('s-dept','err-dept');   valid = false; }
@@ -246,11 +251,17 @@ async function submitStudent() {
   if (!subjects.length)  { showErr('err-subjects');        valid = false; }
   if (!PW_REGEX.test(pw)){ markErr('s-pw','err-pw');       valid = false; }
   if (pw !== pw2)        { markErr('s-pw2','err-pw2');     valid = false; }
-
   if (!valid) return;
 
-  document.getElementById('btn-text').style.display = 'none';
-  document.getElementById('btn-spin').style.display = 'inline-block';
+  const btnText = document.getElementById('btn-text');
+  const btnSpin = document.getElementById('btn-spin');
+  btnText.style.display = 'none';
+  btnSpin.style.display = 'inline-block';
+
+  // ── Network call only — JS logic is OUTSIDE this try/catch ──────────────
+  let responseData = null;
+  let responseOk   = false;
+  let responseStatus = 0;
 
   try {
     const res  = await fetch(`${API}/api/register/student`, {
@@ -258,25 +269,34 @@ async function submitStudent() {
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({ name, department: dept, roll_number: roll, subjects, password: pw })
     });
-    const data = await res.json();
-
-    if (res.status === 409) {
-      showErr('err-roll-dup');
-      markErr('s-roll','err-roll-dup');
-      return;
-    } else if (!res.ok) {
-      showAlert(data.detail || 'Registration failed.');
-      return;
-    }
-
-    // Account created — store student ID and move to Step 2
-    createdStudentId = data.id;
-    showBiometricStep();
-
+    responseData   = await res.json();
+    responseOk     = res.ok;
+    responseStatus = res.status;
   } catch(e) {
-    showAlert('Server error. Please try again.');
-  } finally {
-    document.getElementById('btn-text').style.display = 'inline';
-    document.getElementById('btn-spin').style.display = 'none';
+    // Only genuine network failures reach here
+    showAlert('Network error. Check your connection and try again.');
+    btnText.style.display = 'inline';
+    btnSpin.style.display = 'none';
+    return;
   }
+
+  btnText.style.display = 'inline';
+  btnSpin.style.display = 'none';
+
+  // ── Handle response outside try/catch so JS errors are visible ──────────
+  if (responseStatus === 409) {
+    showErr('err-roll-dup');
+    markErr('s-roll','err-roll-dup');
+    return;
+  }
+
+  if (!responseOk) {
+    showAlert(responseData?.detail || 'Registration failed. Please try again.');
+    return;
+  }
+
+  // ── Success — move to biometric step ────────────────────────────────────
+  createdStudentId = responseData.id;
+  console.log('Account created, student ID:', createdStudentId);
+  showBiometricStep();
 }
