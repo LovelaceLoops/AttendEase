@@ -1,13 +1,19 @@
 __pycache__/
-*.pyc
+*.py[cod]
 *.pyo
-.env
-attendease.db
-# Don't commit your local DB
+*.pyd
+.Python
 *.db
-.DS_Store
-# macOS junk files
-venv/
+*.sqlite3
+.env
 .venv/
-node_modules/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
 *.log

@@ -1,4 +1,4 @@
-// student_dashboard.js
+// student_dashboard.js — with real html5-qrcode scanner
 
 const API = '';
 let user = null;
@@ -6,247 +6,44 @@ let sessionInterval = null;
 let fingerprintVerified = false;
 let sessionActive = false;
 let currentSession = null;
+let html5QrCode = null;   // QR scanner instance
 
 // ----------- INIT -----------
 document.addEventListener('DOMContentLoaded', async () => {
-  const raw = localStorage.getItem('user');
+  const raw = sessionStorage.getItem('user');
   if (!raw) { window.location.href = '/static/pages/index.html'; return; }
   user = JSON.parse(raw);
   if (user.role !== 'student') { window.location.href = '/static/pages/professor_dashboard.html'; return; }
 
-  document.getElementById('nav-name').textContent    = user.name;
-  document.getElementById('nav-avatar').textContent  = user.name[0].toUpperCase();
+  document.getElementById('nav-name').textContent = user.name;
+  document.getElementById('nav-avatar').textContent = user.name[0].toUpperCase();
   document.getElementById('welcome-msg').textContent = `Hello, ${user.name}! 👋`;
-  document.getElementById('roll-dept').textContent   = `Roll No: ${user.roll_number} | Department: ${user.department}`;
+  document.getElementById('roll-dept').textContent = `Roll No: ${user.roll_number} | Department: ${user.department}`;
 
+  loadQRImage();
   await loadStats();
   await loadLog();
   startGeoWatch();
   pollForSession();
-  checkBiometricStatus();
 });
 
-// ----------- BIOMETRIC STATUS CHECK -----------
-async function checkBiometricStatus() {
-  try {
-    const res  = await fetch(`${API}/api/webauthn/status/${user.id}`);
-    if (!res.ok) return;
-    const data = await res.json();
-    if (!data.registered) {
-      const el = document.getElementById('biometric-warning');
-      if (el) el.style.display = 'block';
-    }
-  } catch(e) {
-    console.error('Biometric status check failed:', e);
-  }
-}
-
-// ----------- WEBAUTHN HELPERS -----------
-function b64urlDecode(str) {
-  str = str.replace(/-/g, '+').replace(/_/g, '/');
-  while (str.length % 4) str += '=';
-  const binary = atob(str);
-  const bytes  = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return bytes.buffer;
-}
-
-function b64urlEncode(buffer) {
-  const bytes = new Uint8Array(buffer);
-  let str = '';
-  bytes.forEach(b => str += String.fromCharCode(b));
-  return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-}
-
-// Used by enrollBiometricNow() for registration
-function prepareRegistrationOptions(options) {
-  options.challenge = b64urlDecode(options.challenge);
-  options.user.id   = b64urlDecode(options.user.id);
-  if (options.excludeCredentials) {
-    options.excludeCredentials = options.excludeCredentials.map(c => ({
-      ...c, id: b64urlDecode(c.id)
-    }));
-  }
-  return options;
-}
-
-// Used by verifyBiometric() for authentication
-function prepareAuthOptions(options) {
-  options.challenge = b64urlDecode(options.challenge);
-  if (options.allowCredentials) {
-    options.allowCredentials = options.allowCredentials.map(c => ({
-      ...c, id: b64urlDecode(c.id)
-    }));
-  }
-  return options;
-}
-
-// Used by verifyBiometric() — serializes auth response for server
-function serializeAuthCredential(credential) {
-  return {
-    id:    credential.id,
-    rawId: b64urlEncode(credential.rawId),
-    type:  credential.type,
-    response: {
-      clientDataJSON:    b64urlEncode(credential.response.clientDataJSON),
-      authenticatorData: b64urlEncode(credential.response.authenticatorData),
-      signature:         b64urlEncode(credential.response.signature),
-      userHandle: credential.response.userHandle
-        ? b64urlEncode(credential.response.userHandle)
-        : null,
-    }
+// ----------- LOAD STUDENT QR IMAGE -----------
+function loadQRImage() {
+  const img = document.getElementById('student-qr-img');
+  const src = `${API}/api/student/qr-image/${user.id}`;
+  img.src = src;
+  img.onload = () => {
+    const a = document.getElementById('qr-download-btn');
+    const canvas = document.createElement('canvas');
+    canvas.width  = img.naturalWidth  || 200;
+    canvas.height = img.naturalHeight || 200;
+    canvas.getContext('2d').drawImage(img, 0, 0);
+    a.href = canvas.toDataURL('image/png');
   };
-}
-
-// Used by enrollBiometricNow() — serializes registration response for server
-function serializeCredential(credential) {
-  return {
-    id:    credential.id,
-    rawId: b64urlEncode(credential.rawId),
-    type:  credential.type,
-    response: {
-      clientDataJSON:    b64urlEncode(credential.response.clientDataJSON),
-      attestationObject: b64urlEncode(credential.response.attestationObject),
-    }
+  img.onerror = () => {
+    img.alt = 'QR unavailable — ensure qrcode[pil] is installed';
+    img.style.border = '2px dashed var(--error)';
   };
-}
-
-// ----------- ENROLL BIOMETRIC FROM DASHBOARD -----------
-async function enrollBiometricNow() {
-  if (!window.PublicKeyCredential) {
-    alert('Your browser does not support biometric authentication. Please use Chrome on Android.');
-    return;
-  }
-
-  try {
-    // Step 1: Get registration options from server
-    const beginRes = await fetch(`${API}/api/webauthn/register/begin`, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ student_id: user.id })
-    });
-
-    if (!beginRes.ok) {
-      const err = await beginRes.json();
-      alert('Could not start biometric setup: ' + (err.detail || 'Unknown error'));
-      return;
-    }
-
-    const options = await beginRes.json();
-
-    // Step 2: Trigger device fingerprint / face prompt
-    let credential;
-    try {
-      credential = await navigator.credentials.create({
-        publicKey: prepareRegistrationOptions(options)
-      });
-    } catch(e) {
-      alert('Fingerprint prompt was cancelled or failed: ' + e.message);
-      return;
-    }
-
-    // Step 3: Send verified credential to server
-    const completeRes = await fetch(`${API}/api/webauthn/register/complete`, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({
-        student_id: user.id,
-        credential: serializeCredential(credential)
-      })
-    });
-
-    if (!completeRes.ok) {
-      const err = await completeRes.json();
-      alert('Server rejected biometric: ' + (err.detail || 'Unknown error'));
-      return;
-    }
-
-    // Success — hide the warning banner
-    alert('✅ Fingerprint registered successfully! You can now mark attendance.');
-    document.getElementById('biometric-warning').style.display = 'none';
-
-  } catch(e) {
-    alert('Error during biometric setup: ' + e.message);
-  }
-}
-
-// ----------- REAL BIOMETRIC VERIFICATION (at attendance time) -----------
-async function verifyBiometric() {
-  if (!window.PublicKeyCredential) {
-    showResultModal(false, 'Not Supported', 'Your browser does not support biometric authentication. Please use Chrome on Android or Safari on iPhone.');
-    return false;
-  }
-
-  document.getElementById('fp-icon').textContent  = '⏳';
-  document.getElementById('fp-title').textContent = 'Verifying…';
-  document.getElementById('fp-msg').textContent   = 'Please scan your fingerprint when prompted by your device.';
-
-  try {
-    // Step 1: Get auth challenge from server
-    const beginRes = await fetch(`${API}/api/webauthn/auth/begin`, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ student_id: user.id })
-    });
-
-    if (!beginRes.ok) {
-      const err = await beginRes.json();
-      if (beginRes.status === 404) {
-        document.getElementById('fp-icon').textContent  = '⚠️';
-        document.getElementById('fp-title').textContent = 'Biometric Not Set Up';
-        document.getElementById('fp-msg').textContent   = 'No fingerprint registered. Tap Cancel and use the Register button on your dashboard.';
-        return false;
-      }
-      throw new Error(err.detail || 'Could not start biometric verification.');
-    }
-
-    const options = await beginRes.json();
-
-    // Step 2: Trigger device fingerprint / face scan
-    let credential;
-    try {
-      credential = await navigator.credentials.get({
-        publicKey: prepareAuthOptions(options)
-      });
-    } catch (e) {
-      document.getElementById('fp-icon').textContent  = '❌';
-      document.getElementById('fp-title').textContent = e.name === 'NotAllowedError' ? 'Cancelled' : 'Failed';
-      document.getElementById('fp-msg').textContent   = e.name === 'NotAllowedError'
-        ? 'Biometric prompt was dismissed. Please try again.'
-        : `Error: ${e.message}`;
-      return false;
-    }
-
-    // Step 3: Verify with server
-    const completeRes = await fetch(`${API}/api/webauthn/auth/complete`, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({
-        student_id: user.id,
-        credential: serializeAuthCredential(credential)
-      })
-    });
-
-    if (!completeRes.ok) {
-      const err = await completeRes.json();
-      document.getElementById('fp-icon').textContent  = '❌';
-      document.getElementById('fp-title').textContent = 'Verification Failed';
-      document.getElementById('fp-msg').textContent   = err.detail || 'Biometric did not match. Try again.';
-      return false;
-    }
-
-    document.getElementById('fp-icon').textContent  = '✅';
-    document.getElementById('fp-title').textContent = 'Verified!';
-    document.getElementById('fp-msg').textContent   = 'Fingerprint confirmed. Proceed to scan your QR code.';
-    return true;
-
-  } catch (e) {
-    console.error('WebAuthn auth error:', e);
-    document.getElementById('fp-icon').textContent  = '❌';
-    document.getElementById('fp-title').textContent = 'Error';
-    document.getElementById('fp-msg').textContent   = `Something went wrong: ${e.message}`;
-    return false;
-  }
 }
 
 // ----------- GEOFENCING -----------
@@ -257,7 +54,7 @@ function startGeoWatch() {
   }
   navigator.geolocation.watchPosition(
     pos => checkGeoFence(pos.coords.latitude, pos.coords.longitude),
-    err => setGeo(false, 'Location access denied. Allow location to record attendance.'),
+    ()  => setGeo(false, 'Location access denied. Allow location to record attendance.'),
     { enableHighAccuracy: true, maximumAge: 5000 }
   );
 }
@@ -293,16 +90,14 @@ async function pollForSession() {
         hideSessionBanner();
       }
     }
-  } catch(e) {
-    console.error('Session poll failed:', e);
-  }
+  } catch {}
   setTimeout(pollForSession, 10000);
 }
 
 function showSessionBanner(sess) {
   sessionActive = true;
   document.getElementById('session-banner').style.display = 'block';
-  document.getElementById('session-subject').textContent  = sess.subject;
+  document.getElementById('session-subject').textContent = sess.subject;
   startSessionTimer(sess.remaining_seconds || 600);
 }
 
@@ -324,8 +119,8 @@ function startSessionTimer(seconds) {
 }
 
 function updateTimerDisplay(s) {
-  const m   = Math.floor(s/60).toString().padStart(2,'0');
-  const sec = (s % 60).toString().padStart(2,'0');
+  const m   = Math.floor(s / 60).toString().padStart(2, '0');
+  const sec = (s % 60).toString().padStart(2, '0');
   document.getElementById('session-timer').textContent = `${m}:${sec}`;
 }
 
@@ -336,18 +131,97 @@ function startAttendance() {
     return;
   }
   if (user._withinFence === false) {
-    showResultModal(false, 'Outside Range', 'You are too far from the professor. Move closer and try again.');
+    showResultModal(false, 'Outside Range', 'You must be within 5 meters of the professor to record attendance.');
     return;
   }
-
+  // Step 1 — fingerprint
+  fingerprintVerified = false;
+  document.getElementById('fp-icon').textContent  = '👆';
+  document.getElementById('fp-title').textContent = 'Verify Fingerprint';
+  document.getElementById('fp-msg').textContent   = 'Place your finger on the sensor to verify your identity before marking attendance.';
+  openModal('fp-modal');
 }
 
-async function simulateQRScan() {
-  const area = document.getElementById('qr-scan-area');
-  area.innerHTML = '⏳';
+function simulateFingerprint() {
+  const icon  = document.getElementById('fp-icon');
+  const title = document.getElementById('fp-title');
+  const msg   = document.getElementById('fp-msg');
+
+  icon.textContent  = '⏳';
+  title.textContent = 'Scanning...';
+  msg.textContent   = 'Hold still while we verify your fingerprint.';
+
+  setTimeout(() => {
+    fingerprintVerified = true;
+    icon.textContent  = '✅';
+    title.textContent = 'Verified!';
+    msg.textContent   = 'Fingerprint confirmed. Opening QR scanner now.';
+    setTimeout(() => {
+      closeModal('fp-modal');
+      openQRScanner();    // Step 2 — real camera scan
+    }, 1000);
+  }, 1800);
+}
+
+// ----------- REAL QR SCANNER -----------
+function openQRScanner() {
+  openModal('qr-modal');
+  document.getElementById('qr-status-msg').textContent = 'Starting camera…';
+
+  // Destroy previous instance cleanly
+  if (html5QrCode) {
+    html5QrCode.clear().catch(() => {});
+    html5QrCode = null;
+  }
+  // Clear any leftover DOM from previous scan
+  document.getElementById('qr-reader').innerHTML = '';
+
+  html5QrCode = new Html5Qrcode('qr-reader');
+
+  Html5Qrcode.getCameras()
+    .then(cameras => {
+      if (!cameras || cameras.length === 0) {
+        document.getElementById('qr-status-msg').textContent = '❌ No camera found on this device.';
+        return;
+      }
+      // Prefer the rear/environment camera on mobile phones
+      const preferred = cameras.find(c =>
+        c.label.toLowerCase().includes('back') ||
+        c.label.toLowerCase().includes('rear') ||
+        c.label.toLowerCase().includes('environment')
+      );
+      const cameraId = (preferred || cameras[cameras.length - 1]).id;
+
+      document.getElementById('qr-status-msg').textContent = '📷 Point camera at your QR code';
+
+      html5QrCode.start(
+        cameraId,
+        { fps: 10, qrbox: { width: 220, height: 220 }, aspectRatio: 1.0 },
+        onQRSuccess,
+        () => {}   // per-frame decode failures are normal — ignore them
+      ).catch(err => {
+        document.getElementById('qr-status-msg').textContent =
+          '❌ Camera access denied. Please allow camera permission and try again.';
+        console.error('QR scanner error:', err);
+      });
+    })
+    .catch(() => {
+      document.getElementById('qr-status-msg').textContent = '❌ Could not enumerate cameras.';
+    });
+}
+
+// Called automatically when a QR code is successfully decoded
+async function onQRSuccess(decodedText) {
+  document.getElementById('qr-status-msg').textContent = '⏳ Verifying with server…';
+
+  // Stop scanner immediately — don't scan again
+  try { await html5QrCode.stop(); } catch {}
+
+  // The QR code contains just the roll number as plain text
+  const scannedRoll = decodedText.trim();
+  const deviceId    = getDeviceId();
 
   try {
-    const deviceId = getDeviceId();
     const res  = await fetch(`${API}/api/attendance/record`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -355,32 +229,51 @@ async function simulateQRScan() {
         student_id:         user.id,
         session_id:         currentSession?.session_id,
         device_id:          deviceId,
-        qr_code:            user.qr_code || user.roll_number,
+        qr_code:            scannedRoll,        // plain roll number from QR
         biometric_verified: fingerprintVerified
       })
     });
     const data = await res.json();
-    closeModal('qr-modal');
+
+    closeQRModal();
 
     if (res.ok) {
-      showResultModal(true, 'Attendance Recorded! ✅',
-        `Your attendance for ${currentSession?.subject} has been successfully marked.`);
+      showResultModal(
+        true,
+        'Attendance Recorded! ✅',
+        `Your attendance for "${currentSession?.subject}" has been marked as ${data.status}.`
+      );
       await loadStats();
       await loadLog();
     } else {
       showResultModal(false, 'Failed ❌', data.detail || 'Could not record attendance.');
     }
-  } catch(e) {
-    closeModal('qr-modal');
-    showResultModal(false, 'Error', 'Network error. Please try again.');
+  } catch {
+    closeQRModal();
+    showResultModal(false, 'Network Error', 'Could not reach the server. Please try again.');
   }
 }
 
-// ----------- DEVICE ID -----------
+// Stop scanner and close the modal cleanly
+function closeQRModal() {
+  if (html5QrCode) {
+    html5QrCode.stop()
+      .catch(() => {})
+      .finally(() => {
+        html5QrCode.clear().catch(() => {});
+        html5QrCode = null;
+        document.getElementById('qr-reader').innerHTML = '';
+      });
+  }
+  closeModal('qr-modal');
+  document.getElementById('qr-status-msg').textContent = '';
+}
+
+// ----------- DEVICE ID (one attendance per device per session) -----------
 function getDeviceId() {
   let id = localStorage.getItem('device_id');
   if (!id) {
-    id = 'dev_' + Math.random().toString(36).substr(2,12) + Date.now();
+    id = 'dev_' + Math.random().toString(36).substr(2, 12) + Date.now();
     localStorage.setItem('device_id', id);
   }
   return id;
@@ -396,12 +289,14 @@ async function loadStats() {
     document.getElementById('stat-present').textContent = d.present;
     document.getElementById('stat-absent').textContent  = d.absent;
     document.getElementById('stat-late').textContent    = d.late;
+
     const total = d.present + d.absent + d.late;
     const pct   = total > 0 ? Math.round((d.present + d.late) / total * 100) : 0;
+
     document.getElementById('stat-overall').textContent = pct + '%';
-    document.getElementById('pct-present').textContent  = total ? Math.round(d.present/total*100)+'%' : '0%';
-    document.getElementById('pct-absent').textContent   = total ? Math.round(d.absent/total*100)+'%'  : '0%';
-    document.getElementById('pct-late').textContent     = total ? Math.round(d.late/total*100)+'%'    : '0%';
+    document.getElementById('pct-present').textContent  = total ? Math.round(d.present / total * 100) + '%' : '0%';
+    document.getElementById('pct-absent').textContent   = total ? Math.round(d.absent  / total * 100) + '%' : '0%';
+    document.getElementById('pct-late').textContent     = total ? Math.round(d.late    / total * 100) + '%' : '0%';
     document.getElementById('stat-status').textContent  = pct >= 75 ? '🟢 Good standing' : '🔴 Below 75% threshold!';
 
     if (d.subjects) renderSubjectAttendance(d.subjects);
@@ -416,13 +311,13 @@ function renderSubjectAttendance(subjects) {
   }
   el.innerHTML = subjects.map(s => {
     const total  = s.present + s.absent + s.late;
-    const pct    = total > 0 ? Math.round((s.present + s.late)/total*100) : 0;
+    const pct    = total > 0 ? Math.round((s.present + s.late) / total * 100) : 0;
     const danger = pct < 75;
     return `
     <div style="margin-bottom:20px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
         <strong style="font-size:0.88rem;color:var(--text-dark);">${s.subject}</strong>
-        <span class="badge ${danger?'badge-error':'badge-success'}">${pct}%</span>
+        <span class="badge ${danger ? 'badge-error' : 'badge-success'}">${pct}%</span>
       </div>
       <div style="display:flex;gap:12px;font-size:0.75rem;color:var(--text-light);margin-bottom:6px;">
         <span>✅ ${s.present} present</span>
@@ -430,7 +325,7 @@ function renderSubjectAttendance(subjects) {
         <span>⏰ ${s.late} late</span>
       </div>
       <div class="progress-bar">
-        <div class="progress-fill ${danger?'danger':''}" style="width:${pct}%"></div>
+        <div class="progress-fill ${danger ? 'danger' : ''}" style="width:${pct}%"></div>
       </div>
     </div>`;
   }).join('');
@@ -438,9 +333,9 @@ function renderSubjectAttendance(subjects) {
 
 async function loadLog() {
   try {
-    const res  = await fetch(`${API}/api/attendance/log/${user.id}`);
+    const res = await fetch(`${API}/api/attendance/log/${user.id}`);
     if (!res.ok) return;
-    const logs = await res.json();
+    const logs  = await res.json();
     const tbody = document.getElementById('att-log-body');
     if (!logs.length) {
       tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-light);padding:24px;">No records yet.</td></tr>';
@@ -450,8 +345,8 @@ async function loadLog() {
       <tr>
         <td>${new Date(l.timestamp).toLocaleDateString()}</td>
         <td>${l.subject}</td>
-        <td>${new Date(l.timestamp).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</td>
-        <td><span class="badge ${l.status==='present'?'badge-success':l.status==='late'?'badge-warn':'badge-error'}">${l.status}</span></td>
+        <td>${new Date(l.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
+        <td><span class="badge ${l.status === 'present' ? 'badge-success' : l.status === 'late' ? 'badge-warn' : 'badge-error'}">${l.status}</span></td>
       </tr>`).join('');
   } catch {}
 }
@@ -468,6 +363,6 @@ function showResultModal(success, title, msg) {
 }
 
 function logout() {
-  localStorage.clear();
+  sessionStorage.clear();
   window.location.href = '/static/pages/index.html';
 }

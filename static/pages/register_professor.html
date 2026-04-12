@@ -5,11 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AttendEase — Professor Registration</title>
   <link rel="stylesheet" href="/static/css/theme.css" />
-  <link rel="manifest" href="/static/manifest.json">
-<meta name="theme-color" content="#4fc3f7">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="AttendEase">
-
 </head>
 <body>
 <div class="page-wrapper">
@@ -41,12 +36,17 @@
         <select id="p-dept">
           <option value="">— Select Department —</option>
           <option>Computer Science</option>
-          <option>Artificial Inteligence and Machine Learning</option>
-          <option>Data Science</option>
-          <option>Mechanical</option>
-          <option>Civil</option>
-          <option>Automobile</option>
-          <option>Information and Technology</option>
+          <option>Electronics &amp; Communication</option>
+          <option>Mechanical Engineering</option>
+          <option>Civil Engineering</option>
+          <option>Information Technology</option>
+          <option>Electrical Engineering</option>
+          <option>Chemical Engineering</option>
+          <option>Biotechnology</option>
+          <option>Business Administration</option>
+          <option>Mathematics</option>
+          <option>Physics</option>
+          <option>Other</option>
         </select>
         <span class="error-msg" id="err-dept">Please select your department.</span>
       </div>
@@ -95,11 +95,5 @@
 </div>
 
 <script src="/static/js/register_professor.js"></script>
-<script>
-  if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("/static/sw.js");
-  }
-</script>
-
 </body>
 </html>

@@ -7,7 +7,7 @@ let activeSessionId = null;
 let allStudents = [];
 
 document.addEventListener('DOMContentLoaded', async () => {
-  const raw = localStorage.getItem('user');
+  const raw = sessionStorage.getItem('user');
   if (!raw) { window.location.href = '/static/pages/index.html'; return; }
   user = JSON.parse(raw);
   if (user.role !== 'professor') { window.location.href = '/static/pages/student_dashboard.html'; return; }
@@ -91,7 +91,7 @@ async function startSession() {
     startCountdown(duration * 60);
 
     // Share professor location for geofencing
-    //shareLocation(data.session_id);
+    shareLocation(data.session_id);
 
   } catch(e) {
     showAlert('Server error. Please try again.', 'error');
@@ -138,20 +138,21 @@ function endSessionUI() {
   loadClassStats();
 }
 
-//function shareLocation(sessionId) {
- // if (!navigator.geolocation) return;
-  //navigator.geolocation.watchPosition(pos => {
-    //fetch(`${API}/api/session/location`, {
-      //method: 'POST',
-      //headers: { 'Content-Type': 'application/json' },
-      //body: JSON.stringify({
-        //session_id: sessionId,
-        //lat: pos.coords.latitude,
-        //lon: pos.coords.longitude
-      //})
-    //}).catch(() => {});
-  //}, null, { enableHighAccuracy: true, maximumAge: 5000 });
-//}
+// Share professor GPS for geofencing
+function shareLocation(sessionId) {
+  if (!navigator.geolocation) return;
+  navigator.geolocation.watchPosition(pos => {
+    fetch(`${API}/api/session/location`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        session_id: sessionId,
+        lat: pos.coords.latitude,
+        lon: pos.coords.longitude
+      })
+    }).catch(() => {});
+  }, null, { enableHighAccuracy: true, maximumAge: 5000 });
+}
 
 // ----------- MANUAL ATTENDANCE -----------
 async function manualAttendance() {
@@ -282,6 +283,6 @@ function showAlert(msg, type='info') {
 }
 
 function logout() {
-  localStorage.clear();
+  sessionStorage.clear();
   window.location.href = '/static/pages/index.html';
 }

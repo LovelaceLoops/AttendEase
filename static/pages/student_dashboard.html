@@ -5,10 +5,27 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AttendEase — Student Dashboard</title>
   <link rel="stylesheet" href="/static/css/theme.css" />
-  <link rel="manifest" href="/static/manifest.json">
-  <meta name="theme-color" content="#4fc3f7">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-title" content="AttendEase">
+  <!-- Real QR scanner library -->
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <style>
+    /* Override html5-qrcode default styles to match theme */
+    #qr-reader { border-radius: 12px; overflow: hidden; width: 100% !important; }
+    #qr-reader video { border-radius: 10px; }
+    #qr-reader__scan_region { border-radius: 10px; }
+    #qr-reader__dashboard_section_csr button {
+      background: linear-gradient(135deg, var(--primary), #29b6f6) !important;
+      color: white !important;
+      border: none !important;
+      border-radius: 8px !important;
+      padding: 10px 20px !important;
+      font-family: 'Poppins', sans-serif !important;
+      font-weight: 600 !important;
+      cursor: pointer !important;
+      margin-top: 8px !important;
+    }
+    #qr-reader__status_span { font-size: 0.8rem; color: var(--text-light); }
+    #qr-reader__filescan_input { display: none; }
+  </style>
 </head>
 <body>
 
@@ -30,7 +47,7 @@
     <p id="roll-dept">Roll No: — | Department: —</p>
   </div>
 
-    <!-- Geofence Status -->
+  <!-- Geofence Status -->
   <div class="geo-indicator geo-out" id="geo-status">
     <div class="geo-dot"></div>
     <span id="geo-text">Checking your location...</span>
@@ -78,6 +95,28 @@
     </div>
   </div>
 
+  <!-- Your QR Code (for ID card) -->
+  <div class="panel" style="margin-bottom:20px;">
+    <div class="panel-header">
+      <h3>🪪 Your Student QR Code</h3>
+      <span class="badge badge-info">Print on ID Card</span>
+    </div>
+    <div class="panel-body" style="text-align:center;">
+      <p style="font-size:0.82rem;color:var(--text-light);margin-bottom:16px;">
+        This QR code is unique to you. Show it during attendance — the professor's scanner will read it.
+      </p>
+      <img id="student-qr-img"
+           src=""
+           alt="Your QR Code"
+           style="width:180px;height:180px;border-radius:12px;border:2px dashed rgba(79,195,247,0.3);padding:8px;display:block;margin:0 auto 16px;" />
+      <a id="qr-download-btn" download="my_qr_code.png"
+         class="btn btn-outline"
+         style="max-width:220px;margin:0 auto;display:inline-flex;text-decoration:none;">
+        ⬇ Download QR Code
+      </a>
+    </div>
+  </div>
+
   <!-- Subject-wise Attendance -->
   <div class="panel">
     <div class="panel-header">
@@ -110,9 +149,44 @@
     </div>
   </div>
 
-</div><!-- end dashboard-wrapper -->
+</div>
 
-<!-- ── RESULT MODAL ───────────────────────────────────────────────────────── -->
+<!-- FINGERPRINT MODAL -->
+<div class="modal-overlay" id="fp-modal">
+  <div class="modal">
+    <div class="fingerprint-anim">
+      <span class="fp-icon" id="fp-icon">👆</span>
+    </div>
+    <h3 id="fp-title">Verify Fingerprint</h3>
+    <p id="fp-msg">Please place your finger on the sensor to verify your identity before marking attendance.</p>
+    <button class="btn btn-primary" onclick="simulateFingerprint()" style="max-width:240px;margin:0 auto 10px;">
+      Scan Fingerprint
+    </button>
+    <button class="btn btn-outline" onclick="closeModal('fp-modal')" style="max-width:240px;margin:0 auto;">
+      Cancel
+    </button>
+  </div>
+</div>
+
+<!-- QR MODAL -->
+<div class="modal-overlay" id="qr-modal">
+  <div class="modal" style="max-width:480px;">
+    <h3 style="margin-bottom:6px;">📷 Scan Student QR Code</h3>
+    <p style="margin-bottom:14px;">Point your camera at the QR code on the student's ID card.</p>
+
+    <!-- Camera feed rendered here by html5-qrcode -->
+    <div id="qr-reader" style="width:100%;margin-bottom:12px;"></div>
+
+    <!-- Status message shown during/after scan -->
+    <p id="qr-status-msg" style="font-size:0.8rem;color:var(--text-light);margin-bottom:12px;min-height:18px;"></p>
+
+    <button class="btn btn-outline" onclick="closeQRModal()" style="max-width:240px;margin:0 auto;">
+      Cancel
+    </button>
+  </div>
+</div>
+
+<!-- RESULT MODAL -->
 <div class="modal-overlay" id="result-modal">
   <div class="modal">
     <div class="modal-icon" id="result-icon">✅</div>
@@ -125,11 +199,5 @@
 </div>
 
 <script src="/static/js/student_dashboard.js"></script>
-<script>
-  if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("/static/sw.js");
-  }
-</script>
-
 </body>
 </html>

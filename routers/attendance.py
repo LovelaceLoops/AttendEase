@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session as DBSession
 from pydantic import BaseModel
 from typing import Optional
-from datetime import datetime, timezone
+from datetime import datetime
 import uuid, math
 
 from database import get_db, AttendanceRecord, AttendanceSession, Student, DeviceRecord
@@ -45,14 +45,27 @@ def record_attendance(data: RecordAttendanceRequest, db: DBSession = Depends(get
     if not data.biometric_verified:
         raise HTTPException(status_code=403, detail="Biometric verification required.")
 
-    # Find student
+    # The QR code contains only the roll number as plain text.
+    # Look up student by the scanned roll number first.
+    scanned_roll = data.qr_code.strip()
+    student_by_qr = db.query(Student).filter(
+        Student.roll_number == scanned_roll
+    ).first()
+
+    if not student_by_qr:
+        raise HTTPException(status_code=400, detail=f"No student found for QR code '{scanned_roll}'.")
+
+    # The logged-in student's ID must match the scanned QR roll number.
+    # This prevents one student from scanning another student's QR code.
     student = db.query(Student).filter(Student.id == data.student_id).first()
     if not student:
-        raise HTTPException(status_code=404, detail="Student not found.")
+        raise HTTPException(status_code=404, detail="Logged-in student not found.")
 
-    # Validate QR code
-    if student.qr_code != data.qr_code:
-        raise HTTPException(status_code=400, detail="Invalid QR code.")
+    if student.roll_number != scanned_roll:
+        raise HTTPException(
+            status_code=403,
+            detail="QR code does not match your account. Please scan your own QR code."
+        )
 
     # Find active session
     if data.session_id:
@@ -93,7 +106,7 @@ def record_attendance(data: RecordAttendanceRequest, db: DBSession = Depends(get
         pass  # Geofence validated on client + geofence endpoint; accept here
 
     # Determine status — if session was started <10 min ago it's "present", else "late"
-    elapsed = (datetime.now(timezone.utc) - session.started_at).total_seconds()
+    elapsed = (datetime.utcnow() - session.started_at).total_seconds()
     status  = "present"  # late is set only via manual endpoint
 
     # Save device record

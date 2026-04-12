@@ -13,7 +13,7 @@ from routers import auth, attendance, sessions, students, stats, geofence
 
 app = FastAPI(title="AttendEase API", version="1.0.0")
 
-# CORS
+# CORS — allow all origins for shareability (tighten in production)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -33,7 +33,7 @@ app.include_router(geofence.router,   prefix="/api", tags=["Geofence"])
 # ---- STATIC FILES ----
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# ---- PAGES ----
+# ---- ROOT → serve landing page ----
 @app.get("/")
 async def root():
     return FileResponse("static/pages/index.html")
@@ -57,15 +57,7 @@ async def reg_professor():
 # ---- HEALTH CHECK ----
 @app.get("/api/health")
 async def health():
-    return {
-        "status": "ok",
-        "app": "AttendEase",
-            }
-
-@app.get("/static/sw.js")
-async def service_worker():
-    return FileResponse("static/sw.js",
-                        headers={"Service-Worker-Allowed": "/"})
+    return {"status": "ok", "app": "AttendEase"}
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

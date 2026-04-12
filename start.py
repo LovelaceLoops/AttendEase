@@ -4,9 +4,9 @@ start.py — Initialize DB and launch AttendEase server.
 Usage:  python start.py
 """
 
-#!/usr/bin/env python3
 import sys, os
 
+# Ensure the app directory is on the path
 sys.path.insert(0, os.path.dirname(__file__))
 
 from database import init_db
@@ -14,11 +14,7 @@ print("🗄️  Initializing database...")
 init_db()
 print("✅  Database ready.")
 
-print("🚀  Starting AttendEase...")
-
 import uvicorn
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8000))
-    print(f"Starting on port {port}")
-    uvicorn.run("main:app", host="0.0.0.0", port=port)
+print("🚀  Starting AttendEase on http://0.0.0.0:8000")
+print("🌐  Share this link after exposing with ngrok / Cloudflare Tunnel")
+uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

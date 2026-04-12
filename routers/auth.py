@@ -1,10 +1,11 @@
 """routers/auth.py — Registration & Login"""
 
 from fastapi import APIRouter, HTTPException, Depends
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, validator
 from typing import List
-import uuid, hashlib, re
+import uuid, hashlib, re, io
 
 from database import get_db, Student, Professor
 
@@ -21,7 +22,8 @@ def check_pw(pw: str, hashed: str) -> bool:
     return hash_pw(pw) == hashed
 
 def make_qr(roll: str) -> str:
-    return f"QR_{roll}_{uuid.uuid4().hex[:8].upper()}"
+    # QR code simply stores the roll number — easy to scan and compare
+    return roll
 
 
 # ---- Schemas ----
@@ -32,7 +34,7 @@ class StudentRegister(BaseModel):
     subjects: List[str]
     password: str
 
-    @field_validator('password')
+    @validator('password')
     def pw_strength(cls, v):
         if not PW_PATTERN.match(v):
             raise ValueError("Password must be min 8 chars with uppercase, lowercase and special character.")
@@ -45,17 +47,15 @@ class ProfessorRegister(BaseModel):
     subjects: List[str]
     password: str
 
-    @field_validator('password')
+    @validator('password')
     def pw_strength(cls, v):
         if not PW_PATTERN.match(v):
             raise ValueError("Password must be min 8 chars with uppercase, lowercase and special character.")
         return v
 
 class LoginRequest(BaseModel):
-    identifier: str
+    identifier: str  # roll_number or employee_id
     password: str
-    lat: float | None = None
-    lon: float | None = None
 
 
 # ---- ROUTES ----
@@ -120,11 +120,6 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
     # Try professor
     prof = db.query(Professor).filter(Professor.employee_id == data.identifier).first()
     if prof and check_pw(data.password, prof.password):
-    # Store login-time coordinates
-        if data.lat is not None and data.lon is not None:
-            prof.login_lat = data.lat
-            prof.login_lon = data.lon
-            db.commit()
         return {
             "role":        "professor",
             "id":          prof.id,
@@ -135,3 +130,25 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
         }
 
     raise HTTPException(status_code=401, detail="Invalid credentials.")
+
+
+# ---- QR CODE IMAGE ----
+@router.get("/student/qr-image/{student_id}")
+def get_qr_image(student_id: str, db: Session = Depends(get_db)):
+    """Generate and return a QR code image encoding the student's roll number."""
+    try:
+        import qrcode
+    except ImportError:
+        raise HTTPException(status_code=500, detail="qrcode library not installed. Run: pip install qrcode[pil]")
+
+    student = db.query(Student).filter(Student.id == student_id).first()
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found.")
+
+    # QR encodes just the roll number
+    img = qrcode.make(student.roll_number)
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+    return StreamingResponse(buf, media_type="image/png",
+                             headers={"Cache-Control": "no-cache"})

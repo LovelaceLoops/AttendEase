@@ -5,16 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AttendEase — Student Registration</title>
   <link rel="stylesheet" href="/static/css/theme.css" />
-  <link rel="manifest" href="/static/manifest.json">
-<meta name="theme-color" content="#4fc3f7">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="AttendEase">
-
 </head>
 <body>
 <div class="page-wrapper">
   <div class="card" style="max-width:540px;">
-    
 
     <div class="brand">
       <div class="brand-icon" style="background: linear-gradient(135deg,#4fc3f7,#81d4fa);">
@@ -42,11 +36,17 @@
         <select id="s-dept">
           <option value="">— Select Department —</option>
           <option>Computer Science</option>
-          <option>Artificial Inteligence and Machine Learning</option>
-          <option>Data Science</option>
-          <option>Mechanical</option>
-          <option>Civil</option>
-          <option>Automobile</option>
+          <option>Electronics &amp; Communication</option>
+          <option>Mechanical Engineering</option>
+          <option>Civil Engineering</option>
+          <option>Information Technology</option>
+          <option>Electrical Engineering</option>
+          <option>Chemical Engineering</option>
+          <option>Biotechnology</option>
+          <option>Business Administration</option>
+          <option>Mathematics</option>
+          <option>Physics</option>
+          <option>Other</option>
         </select>
         <span class="error-msg" id="err-dept">Please select your department.</span>
       </div>
@@ -92,15 +92,8 @@
     <p class="link-text">Already have an account? <a href="/static/pages/index.html">Sign In</a></p>
 
   </div>
-  
 </div>
 
 <script src="/static/js/register_student.js"></script>
-<script>
-  if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("/static/sw.js");
-  }
-</script>
-
 </body>
 </html>
