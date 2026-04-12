@@ -2,7 +2,7 @@ fastapi==0.103.2
 uvicorn==0.29.0
 sqlalchemy==1.4.53
 alembic==1.13.1
-psycopg2-binary==2.9.9
+pg8000==1.30.5
 pydantic==1.10.21
 python-dotenv==1.0.1
 python-multipart==0.0.9
