@@ -1,10 +1,9 @@
-"""routers/sessions.py — Attendance Session Management"""
+"""routers/sessions.py - Attendance Session Management"""
 
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session as DBSession
 from pydantic import BaseModel
-from typing import Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timezone
 import uuid
 
 from database import get_db, AttendanceSession, AttendanceRecord, Professor, Student
@@ -26,20 +25,26 @@ class LocationUpdate(BaseModel):
     lon: float
 
 
+def utcnow():
+    return datetime.now(timezone.utc)
+
+
+def make_aware(dt):
+    if dt is None:
+        return utcnow()
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt
+
+
 def mark_absentees(session_id: str, subject: str, db: DBSession):
-    """Mark all enrolled students who didn't attend this session as absent."""
-    # Get all students enrolled in this subject
     all_students = db.query(Student).all()
     enrolled = [s for s in all_students if subject in (s.subjects or [])]
-
-    # Get student IDs who already have a record for this session
     attended_ids = set(
         r.student_id for r in db.query(AttendanceRecord).filter(
             AttendanceRecord.session_id == session_id
         ).all()
     )
-
-    # Create absent records for everyone who didn't attend
     for student in enrolled:
         if student.id not in attended_ids:
             record = AttendanceRecord(
@@ -51,7 +56,6 @@ def mark_absentees(session_id: str, subject: str, db: DBSession):
                 device_id  = None
             )
             db.add(record)
-
     db.commit()
 
 
@@ -63,7 +67,6 @@ def start_session(data: StartSessionRequest, db: DBSession = Depends(get_db)):
     if not prof:
         raise HTTPException(status_code=404, detail="Professor not found.")
 
-    # Deactivate previous sessions and mark absentees
     prev_sessions = db.query(AttendanceSession).filter(
         AttendanceSession.professor_id == data.professor_id,
         AttendanceSession.is_active == True
@@ -71,7 +74,7 @@ def start_session(data: StartSessionRequest, db: DBSession = Depends(get_db)):
 
     for prev in prev_sessions:
         prev.is_active = False
-        prev.ended_at  = datetime.utcnow()
+        prev.ended_at  = utcnow()
         db.commit()
         mark_absentees(prev.id, prev.subject, db)
 
@@ -82,7 +85,8 @@ def start_session(data: StartSessionRequest, db: DBSession = Depends(get_db)):
         start_time       = data.start_time,
         end_time         = data.end_time,
         duration_minutes = duration,
-        is_active        = True
+        is_active        = True,
+        started_at       = utcnow()
     )
     db.add(session)
     db.commit()
@@ -101,14 +105,10 @@ def stop_session(session_id: str, db: DBSession = Depends(get_db)):
     sess = db.query(AttendanceSession).filter(AttendanceSession.id == session_id).first()
     if not sess:
         raise HTTPException(status_code=404, detail="Session not found.")
-
     sess.is_active = False
-    sess.ended_at  = datetime.utcnow()
+    sess.ended_at  = utcnow()
     db.commit()
-
-    # Mark absentees when session is manually stopped
     mark_absentees(session_id, sess.subject, db)
-
     return {"message": "Session stopped."}
 
 
@@ -118,17 +118,14 @@ def get_active_session(db: DBSession = Depends(get_db)):
     if not sess:
         return {"active": False}
 
-    # Auto-expire if past duration
-    elapsed = (datetime.now(sess.started_at.tzinfo) - sess.started_at).total_seconds()
+    elapsed = (utcnow() - make_aware(sess.started_at)).total_seconds()
     window  = sess.duration_minutes * 60
+
     if elapsed >= window:
         sess.is_active = False
-        sess.ended_at  = datetime.utcnow()
+        sess.ended_at  = utcnow()
         db.commit()
-
-        # Mark absentees when session auto-expires
         mark_absentees(sess.id, sess.subject, db)
-
         return {"active": False}
 
     return {
