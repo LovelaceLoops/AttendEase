@@ -119,7 +119,7 @@ def get_active_session(db: DBSession = Depends(get_db)):
         return {"active": False}
 
     # Auto-expire if past duration
-    elapsed = (datetime.utcnow() - (sess.started_at or datetime.utcnow())).total_seconds()
+    elapsed = (datetime.now(sess.started_at.tzinfo) - sess.started_at).total_seconds()
     window  = sess.duration_minutes * 60
     if elapsed >= window:
         sess.is_active = False
