@@ -241,10 +241,14 @@ async function onQRSuccess(decodedText) {
       showResultModal(
         true,
         'Attendance Recorded! ✅',
-        `Your attendance for "${currentSession?.subject}" has been marked as ${data.status}.`
+        `Your attendance for "${currentSession?.subject}" has been marked as ${data.status}. Redirecting to dashboard…`
       );
       await loadStats();
       await loadLog();
+      setTimeout(() => {
+        closeModal('result-modal');
+        window.location.href = '/static/pages/student_dashboard.html';
+      }, 2500);
     } else {
       showResultModal(false, 'Failed ❌', data.detail || 'Could not record attendance.');
     }
