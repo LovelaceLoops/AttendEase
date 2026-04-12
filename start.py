@@ -7,12 +7,35 @@ Usage:  python start.py
 import sys, os
 sys.path.insert(0, os.path.dirname(__file__))
 
-from database import init_db
-print("🗄️  Initializing database...")
-init_db()
-print("✅  Database ready.")
+from database import init_db, engine
+from sqlalchemy import text
 
-# Pre-check routers — warn on failure but never kill the server
+print("🗄️  Initializing database...")
+init_db()  # Creates any missing tables
+print("✅  Tables ready.")
+
+# ── Auto-migrate missing columns ──────────────────────────────────────────────
+# Safe to run every startup — IF NOT EXISTS prevents errors on repeat runs
+print("🔧  Running migrations...")
+
+migrations = [
+    # professors table — login coordinates for geofencing
+    "ALTER TABLE professors ADD COLUMN IF NOT EXISTS login_lat FLOAT",
+    "ALTER TABLE professors ADD COLUMN IF NOT EXISTS login_lon FLOAT",
+]
+
+with engine.connect() as conn:
+    for sql in migrations:
+        try:
+            conn.execute(text(sql))
+            print(f"   ✅ {sql[:60]}…")
+        except Exception as e:
+            print(f"   ℹ️  Skipped (already exists): {sql[:50]}")
+    conn.commit()
+
+print("✅  Migrations complete.")
+
+# ── Check routers ─────────────────────────────────────────────────────────────
 print("🔍  Checking routers...")
 
 try:
@@ -20,18 +43,16 @@ try:
     print("✅  Core routers loaded.")
 except Exception as e:
     print(f"❌  Core router failed: {e}")
-    # Core routers are essential — exit if they fail
     sys.exit(1)
 
 try:
     from routers import webauthn_router
     print("✅  WebAuthn router loaded.")
 except Exception as e:
-    print(f"⚠️  WebAuthn router failed to load: {e}")
-    print("    Biometric features will be unavailable.")
-    print("    Make sure 'webauthn==2.1.0' is in requirements.txt")
-    # Do NOT exit — rest of app still works without biometric
+    print(f"⚠️  WebAuthn router unavailable: {e}")
+    print("    Biometric features disabled. Check webauthn==2.1.0 in requirements.txt")
 
+# ── Start server ──────────────────────────────────────────────────────────────
 print("🚀  Starting AttendEase...")
 
 import uvicorn
