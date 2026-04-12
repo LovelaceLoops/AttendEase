@@ -44,9 +44,7 @@ class Student(Base):
     created_at  = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     attendance_records = relationship("AttendanceRecord", back_populates="student", cascade="all,delete")
-    webauthn_credentials = relationship("WebAuthnCredential", back_populates="student", cascade="all,delete")
-
-
+    
 class Professor(Base):
     __tablename__ = "professors"
 
