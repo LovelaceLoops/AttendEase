@@ -27,6 +27,5 @@ SQLAlchemy==2.0.30
 starlette==0.41.2
 typing_extensions==4.11.0
 uvicorn==0.29.0
-watchfiles==0.21.0
 webauthn==2.1.0
 websockets==12.0
