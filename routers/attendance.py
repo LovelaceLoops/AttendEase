@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session as DBSession
 from pydantic import BaseModel
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid, math
 
 from database import get_db, AttendanceRecord, AttendanceSession, Student, DeviceRecord
@@ -106,7 +106,7 @@ def record_attendance(data: RecordAttendanceRequest, db: DBSession = Depends(get
         pass  # Geofence validated on client + geofence endpoint; accept here
 
     # Determine status — if session was started <10 min ago it's "present", else "late"
-    elapsed = (datetime.utcnow() - session.started_at).total_seconds()
+    elapsed = (datetime.now(timezone.utc) - session.started_at).total_seconds()
     status  = "present"  # late is set only via manual endpoint
 
     # Save device record
